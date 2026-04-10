@@ -157,7 +157,10 @@
         <div class="chat-input-wrapper">
           <div class="chat-input-container">
             <span class="input-prefix" id="input-prefix"></span>
-            <textarea id="chat-input" rows="1" placeholder="Ask Copilot GLI anything... (type / for commands, @ for files)" spellcheck="false"></textarea>
+            <div class="input-ghost-wrapper">
+              <textarea id="chat-input" rows="1" placeholder="Ask Copilot GLI anything... (type / for commands, @ for files, Tab to complete)" spellcheck="false"></textarea>
+              <span class="input-ghost" id="input-ghost" aria-hidden="true"></span>
+            </div>
             <button class="chat-send-btn" id="chat-send" title="Send (Enter)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -166,6 +169,8 @@
           </div>
           <!-- Slash Command Autocomplete -->
           <div class="slash-menu hidden" id="slash-menu"></div>
+          <!-- General Suggestions -->
+          <div class="suggest-menu hidden" id="suggest-menu"></div>
           <!-- @ File Mention Menu -->
           <div class="mention-menu hidden" id="mention-menu"></div>
           <div class="chat-input-footer">

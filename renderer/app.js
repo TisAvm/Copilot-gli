@@ -316,12 +316,78 @@ document.addEventListener('DOMContentLoaded', () => {
   // ═══════════════════════════════════════════════════════════
   const slashMenu = $('#slash-menu');
 
+  // ── Fuzzy match helper — highlights matching chars ──
+  function fuzzyMatch(text, query) {
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+
+    // Exact prefix gets highest score
+    if (lowerText.startsWith(lowerQuery)) return { score: 100 + (query.length / text.length * 50), ranges: [[0, query.length]] };
+
+    // Substring match
+    const idx = lowerText.indexOf(lowerQuery);
+    if (idx >= 0) return { score: 80 + (query.length / text.length * 30), ranges: [[idx, idx + query.length]] };
+
+    // Fuzzy char-by-char match
+    let qi = 0, score = 0;
+    const ranges = [];
+    let rangeStart = -1;
+    for (let ti = 0; ti < text.length && qi < query.length; ti++) {
+      if (lowerText[ti] === lowerQuery[qi]) {
+        if (rangeStart === -1) rangeStart = ti;
+        score += (ti === 0 || text[ti - 1] === '-' || text[ti - 1] === ' ') ? 15 : 5;
+        qi++;
+      } else {
+        if (rangeStart !== -1) { ranges.push([rangeStart, ti]); rangeStart = -1; }
+      }
+    }
+    if (rangeStart !== -1) ranges.push([rangeStart, text.length]);
+
+    if (qi < query.length) return null; // didn't match all chars
+    return { score, ranges };
+  }
+
+  function highlightMatches(text, ranges) {
+    if (!ranges || ranges.length === 0) return text;
+    let result = '';
+    let last = 0;
+    for (const [start, end] of ranges) {
+      result += escapeHtml(text.substring(last, start));
+      result += `<mark>${escapeHtml(text.substring(start, end))}</mark>`;
+      last = end;
+    }
+    result += escapeHtml(text.substring(last));
+    return result;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   function showSlashMenu(filter = '') {
     const lower = filter.toLowerCase();
-    const filtered = SLASH_COMMANDS.filter(c =>
-      c.cmd.toLowerCase().includes(lower) || c.desc.toLowerCase().includes(lower));
 
-    if (filtered.length === 0) {
+    // Score and sort results
+    let scored = [];
+    for (const c of SLASH_COMMANDS) {
+      const cmdText = c.cmd.substring(1); // without leading /
+      const nameMatch = fuzzyMatch(cmdText, lower);
+      const descMatch = fuzzyMatch(c.desc, lower);
+      const best = nameMatch && descMatch
+        ? (nameMatch.score >= descMatch.score ? { ...nameMatch, matchField: 'cmd' } : { ...descMatch, matchField: 'desc' })
+        : nameMatch ? { ...nameMatch, matchField: 'cmd' }
+        : descMatch ? { ...descMatch, matchField: 'desc' }
+        : null;
+
+      if (lower === '' || best) {
+        scored.push({ cmd: c, score: best?.score || 0, ranges: best?.ranges || [], matchField: best?.matchField || 'cmd' });
+      }
+    }
+
+    // Sort by score descending
+    if (lower) scored.sort((a, b) => b.score - a.score);
+
+    if (scored.length === 0) {
       slashMenu.classList.add('hidden');
       return;
     }
@@ -330,40 +396,81 @@ document.addEventListener('DOMContentLoaded', () => {
     slashMenu.innerHTML = '';
     App.slashMenuIndex = 0;
 
-    const categories = [...new Set(filtered.map(c => c.category))];
-    for (const cat of categories) {
-      const group = document.createElement('div');
-      group.className = 'slash-menu-group';
-
-      const label = document.createElement('div');
-      label.className = 'slash-menu-group-label';
-      label.textContent = cat;
-      group.appendChild(label);
-
-      for (const cmd of filtered.filter(c => c.category === cat)) {
+    if (lower) {
+      // Flat list sorted by relevance when filtering
+      for (const { cmd, ranges, matchField } of scored) {
         const item = document.createElement('div');
         item.className = 'slash-menu-item';
         item.dataset.action = cmd.action;
+        item.dataset.cmd = cmd.cmd;
+        const cmdHighlight = matchField === 'cmd'
+          ? highlightMatches(cmd.cmd, ranges.map(([s, e]) => [s + 1, e + 1])) // +1 for leading /
+          : escapeHtml(cmd.cmd);
+        const descHighlight = matchField === 'desc'
+          ? highlightMatches(cmd.desc, ranges)
+          : escapeHtml(cmd.desc);
         item.innerHTML = `
-          <span class="slash-cmd-name">${cmd.cmd}</span>
-          <span class="slash-cmd-desc">${cmd.desc}</span>
-          ${cmd.shortcut ? `<span class="slash-cmd-shortcut">${cmd.shortcut}</span>` : ''}`;
+          <span class="slash-cmd-name">${cmdHighlight}</span>
+          <span class="slash-cmd-desc">${descHighlight}</span>
+          ${cmd.shortcut ? `<span class="slash-cmd-shortcut">${escapeHtml(cmd.shortcut)}</span>` : ''}`;
         item.addEventListener('click', () => {
           chatInput.value = '';
           hideSlashMenu();
           executeSlashCommand(cmd.action);
         });
-        group.appendChild(item);
+        slashMenu.appendChild(item);
       }
-      slashMenu.appendChild(group);
+    } else {
+      // Grouped by category when no filter
+      const categories = [...new Set(SLASH_COMMANDS.map(c => c.category))];
+      for (const cat of categories) {
+        const group = document.createElement('div');
+        group.className = 'slash-menu-group';
+
+        const label = document.createElement('div');
+        label.className = 'slash-menu-group-label';
+        label.textContent = cat;
+        group.appendChild(label);
+
+        for (const cmd of SLASH_COMMANDS.filter(c => c.category === cat)) {
+          const item = document.createElement('div');
+          item.className = 'slash-menu-item';
+          item.dataset.action = cmd.action;
+          item.dataset.cmd = cmd.cmd;
+          item.innerHTML = `
+            <span class="slash-cmd-name">${escapeHtml(cmd.cmd)}</span>
+            <span class="slash-cmd-desc">${escapeHtml(cmd.desc)}</span>
+            ${cmd.shortcut ? `<span class="slash-cmd-shortcut">${escapeHtml(cmd.shortcut)}</span>` : ''}`;
+          item.addEventListener('click', () => {
+            chatInput.value = '';
+            hideSlashMenu();
+            executeSlashCommand(cmd.action);
+          });
+          group.appendChild(item);
+        }
+        slashMenu.appendChild(group);
+      }
     }
 
     // Highlight first item
     const items = slashMenu.querySelectorAll('.slash-menu-item');
     if (items[0]) items[0].classList.add('selected');
+
+    // Counter
+    const counter = document.createElement('div');
+    counter.className = 'slash-menu-counter';
+    counter.textContent = `${items.length} command${items.length !== 1 ? 's' : ''} · Tab to complete · Enter to run`;
+    slashMenu.appendChild(counter);
+
+    // Ghost text for top match
+    if (lower && scored.length > 0) {
+      updateGhost('/' + lower, scored[0].cmd.cmd);
+    } else {
+      clearGhost();
+    }
   }
 
-  function hideSlashMenu() { slashMenu.classList.add('hidden'); }
+  function hideSlashMenu() { slashMenu.classList.add('hidden'); clearGhost(); }
 
   function navigateSlashMenu(direction) {
     const items = slashMenu.querySelectorAll('.slash-menu-item');
@@ -372,15 +479,31 @@ document.addEventListener('DOMContentLoaded', () => {
     App.slashMenuIndex = (App.slashMenuIndex + direction + items.length) % items.length;
     items[App.slashMenuIndex]?.classList.add('selected');
     items[App.slashMenuIndex]?.scrollIntoView({ block: 'nearest' });
+
+    // Update ghost text to selected command
+    const cmd = items[App.slashMenuIndex]?.dataset?.cmd;
+    if (cmd) updateGhost(chatInput.value, cmd);
   }
 
-  function selectSlashMenuItem() {
+  function selectSlashMenuItem(executeImmediate = false) {
     const items = slashMenu.querySelectorAll('.slash-menu-item');
     const selected = items[App.slashMenuIndex];
-    if (selected) {
+    if (!selected) return;
+
+    const cmd = selected.dataset.cmd;
+
+    if (executeImmediate) {
+      // Enter = execute immediately
       chatInput.value = '';
       hideSlashMenu();
       executeSlashCommand(selected.dataset.action);
+    } else {
+      // Tab = fill the command text (CLI-style completion)
+      chatInput.value = cmd + ' ';
+      hideSlashMenu();
+      chatInput.focus();
+      // Move cursor to end
+      chatInput.selectionStart = chatInput.selectionEnd = chatInput.value.length;
     }
   }
 
@@ -1078,8 +1201,23 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
     if (!slashMenu.classList.contains('hidden')) {
       if (e.key === 'ArrowDown') { e.preventDefault(); navigateSlashMenu(1); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); navigateSlashMenu(-1); return; }
-      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); selectSlashMenuItem(); return; }
+      if (e.key === 'Enter') { e.preventDefault(); selectSlashMenuItem(true); return; }
+      if (e.key === 'Tab') { e.preventDefault(); selectSlashMenuItem(false); return; }
       if (e.key === 'Escape') { e.preventDefault(); hideSlashMenu(); return; }
+    }
+
+    // Suggest menu navigation
+    if (!suggestMenu.classList.contains('hidden')) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); navigateSuggestMenu(1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); navigateSuggestMenu(-1); return; }
+      if (e.key === 'Tab') { e.preventDefault(); selectSuggestItem(false); return; }
+      if (e.key === 'Escape') { e.preventDefault(); hideSuggestMenu(); return; }
+      // Enter in suggest menu = send message normally (don't intercept)
+    }
+
+    // Tab to accept ghost text (when no menus are visible)
+    if (e.key === 'Tab' && slashMenu.classList.contains('hidden') && suggestMenu.classList.contains('hidden')) {
+      if (acceptGhost()) { e.preventDefault(); return; }
     }
 
     // Mention menu navigation
@@ -1113,7 +1251,173 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
     }
   });
 
-  // Auto-resize textarea + slash/mention triggers
+  // ═══════════════════════════════════════════════════════════
+  //  Universal Autocomplete System
+  // ═══════════════════════════════════════════════════════════
+  const suggestMenu = $('#suggest-menu');
+  const ghostEl = $('#input-ghost');
+  let suggestIndex = 0;
+  let currentGhostCompletion = '';
+
+  // All completable items — commands, models, modes, panels, actions
+  const COMPLETIONS = [
+    ...SLASH_COMMANDS.map(c => ({
+      text: c.cmd, label: c.cmd, desc: c.desc, icon: '⚡', type: 'command', action: () => executeSlashCommand(c.action),
+    })),
+    ...MODELS.map(m => ({
+      text: `/model ${m.id}`, label: m.name, desc: `${m.family} — ${m.tier}`, icon: '🧠', type: 'model',
+      action: () => { App.currentModel = m.id; const el = $('#status-model-name'); if (el) el.textContent = m.name; addChatMessage('assistant', `Model set to **${m.name}**`); },
+    })),
+    { text: 'interactive', label: 'Interactive Mode', desc: 'Standard chat mode', icon: '💬', type: 'mode', action: () => setMode('interactive') },
+    { text: 'plan', label: 'Plan Mode', desc: 'Create implementation plans', icon: '📋', type: 'mode', action: () => setMode('plan') },
+    { text: 'autopilot', label: 'Autopilot Mode', desc: 'Autonomous execution', icon: '🤖', type: 'mode', action: () => setMode('autopilot') },
+    { text: 'dark', label: 'Dark Theme', desc: 'GitHub dark palette', icon: '🌙', type: 'theme', action: () => setTheme('dark') },
+    { text: 'cyberpunk', label: 'Cyberpunk Theme', desc: 'Neon magenta & cyan', icon: '⚡', type: 'theme', action: () => setTheme('cyberpunk') },
+    { text: 'light', label: 'Light Theme', desc: 'Clean and bright', icon: '☀️', type: 'theme', action: () => setTheme('light') },
+  ];
+
+  function setMode(mode) {
+    App.currentMode = mode;
+    $$('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    const el = $('#status-mode'); if (el) el.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+    const label = $('#chat-mode-label'); if (label) label.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+    localStorage.setItem('gli-mode', mode);
+    updateStatus(`Mode: ${mode}`);
+  }
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('gli-theme', theme);
+    updateStatus(`Theme: ${theme}`);
+  }
+
+  function showSuggestMenu(query) {
+    if (!query || query.length < 2) { hideSuggestMenu(); return; }
+
+    const scored = [];
+    for (const item of COMPLETIONS) {
+      const labelMatch = fuzzyMatch(item.label, query);
+      const textMatch = fuzzyMatch(item.text, query);
+      const descMatch = fuzzyMatch(item.desc, query);
+      const best = [labelMatch, textMatch, descMatch].filter(Boolean).sort((a, b) => b.score - a.score)[0];
+
+      if (best) {
+        scored.push({ item, score: best.score, ranges: best.ranges, matchField: labelMatch === best ? 'label' : 'text' });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, 12);
+
+    if (top.length === 0) { hideSuggestMenu(); return; }
+
+    suggestMenu.classList.remove('hidden');
+    suggestMenu.innerHTML = '';
+    suggestIndex = 0;
+
+    const hint = document.createElement('div');
+    hint.className = 'suggest-menu-hint';
+    hint.innerHTML = `<span>${top.length} suggestions</span><span>Tab to complete · Enter to send</span>`;
+    suggestMenu.appendChild(hint);
+
+    for (const { item, ranges, matchField } of top) {
+      const el = document.createElement('div');
+      el.className = 'suggest-item';
+      el.dataset.text = item.text;
+      const labelHtml = matchField === 'label' ? highlightMatches(item.label, ranges) : escapeHtml(item.label);
+      el.innerHTML = `
+        <span class="suggest-icon">${item.icon}</span>
+        <span class="suggest-label">${labelHtml}</span>
+        <span class="suggest-type">${item.type}</span>`;
+      el.addEventListener('click', () => {
+        chatInput.value = '';
+        hideSuggestMenu();
+        clearGhost();
+        item.action();
+      });
+      suggestMenu.appendChild(el);
+    }
+
+    // Highlight first
+    const items = suggestMenu.querySelectorAll('.suggest-item');
+    if (items[0]) items[0].classList.add('selected');
+
+    // Ghost text = top suggestion
+    updateGhost(query, top[0]?.item?.text || '');
+  }
+
+  function hideSuggestMenu() {
+    suggestMenu.classList.add('hidden');
+    clearGhost();
+  }
+
+  function navigateSuggestMenu(direction) {
+    const items = suggestMenu.querySelectorAll('.suggest-item');
+    if (items.length === 0) return;
+    items[suggestIndex]?.classList.remove('selected');
+    suggestIndex = (suggestIndex + direction + items.length) % items.length;
+    items[suggestIndex]?.classList.add('selected');
+    items[suggestIndex]?.scrollIntoView({ block: 'nearest' });
+
+    // Update ghost to selected item
+    const val = chatInput.value;
+    updateGhost(val, items[suggestIndex]?.dataset.text || '');
+  }
+
+  function selectSuggestItem(execute = false) {
+    const items = suggestMenu.querySelectorAll('.suggest-item');
+    const selected = items[suggestIndex];
+    if (!selected) return;
+
+    if (execute) {
+      // Enter: execute the action
+      const text = selected.dataset.text;
+      const match = COMPLETIONS.find(c => c.text === text);
+      chatInput.value = '';
+      hideSuggestMenu();
+      if (match) match.action();
+    } else {
+      // Tab: fill the text
+      chatInput.value = selected.dataset.text;
+      hideSuggestMenu();
+      chatInput.focus();
+      chatInput.selectionStart = chatInput.selectionEnd = chatInput.value.length;
+    }
+  }
+
+  // ── Ghost text (dimmed completion hint) ──────────────
+  function updateGhost(typed, suggestion) {
+    if (!ghostEl) return;
+    if (!suggestion || !typed) { clearGhost(); return; }
+
+    const lowerSug = suggestion.toLowerCase();
+    const lowerTyped = typed.toLowerCase();
+
+    // Only show ghost if suggestion starts with what's typed
+    if (lowerSug.startsWith(lowerTyped) && suggestion.length > typed.length) {
+      currentGhostCompletion = suggestion.substring(typed.length);
+      ghostEl.innerHTML = `<span style="visibility:hidden">${escapeHtml(typed)}</span><span class="ghost-completion">${escapeHtml(currentGhostCompletion)}</span>`;
+    } else {
+      clearGhost();
+    }
+  }
+
+  function clearGhost() {
+    if (ghostEl) ghostEl.innerHTML = '';
+    currentGhostCompletion = '';
+  }
+
+  function acceptGhost() {
+    if (currentGhostCompletion) {
+      chatInput.value += currentGhostCompletion;
+      clearGhost();
+      chatInput.selectionStart = chatInput.selectionEnd = chatInput.value.length;
+      return true;
+    }
+    return false;
+  }
+
+  // Auto-resize textarea + slash/mention/suggest triggers
   chatInput.addEventListener('input', () => {
     chatInput.style.height = 'auto';
     chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
@@ -1123,14 +1427,22 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
     // Trigger slash command menu
     if (val.startsWith('/')) {
       showSlashMenu(val.substring(1));
+      hideSuggestMenu();
     } else {
       hideSlashMenu();
+      // General suggestions when typing 2+ chars (not starting with / or @)
+      if (val.length >= 2 && !val.startsWith('@') && !val.startsWith('!')) {
+        showSuggestMenu(val);
+      } else {
+        hideSuggestMenu();
+      }
     }
 
     // Trigger @ mention menu
     const atMatch = val.match(/@(\w*)$/);
     if (atMatch) {
       showMentionMenu(atMatch[1]);
+      hideSuggestMenu();
     } else {
       hideMentionMenu();
     }

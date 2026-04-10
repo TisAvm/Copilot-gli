@@ -1396,6 +1396,121 @@ html, body {
   font-family: 'Cascadia Code', monospace;
 }
 
+.slash-menu mark, .suggest-menu mark {
+  background: rgba(124, 58, 237, 0.25);
+  color: var(--accent-primary);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.slash-menu-counter {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 4px 12px 2px;
+  text-align: right;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Ghost Text (inline autocomplete hint) ──────────── */
+
+.input-ghost-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.input-ghost-wrapper textarea {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.input-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 14px;
+  line-height: 1.5;
+  color: transparent;
+  z-index: 0;
+}
+
+.input-ghost .ghost-completion {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+/* ── General Suggestion Menu ────────────────────────── */
+
+.suggest-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 4px;
+  z-index: 50;
+  animation: slash-appear 0.15s ease;
+}
+
+.suggest-menu-hint {
+  padding: 4px 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+}
+
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.suggest-item:hover,
+.suggest-item.selected {
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.suggest-item .suggest-icon {
+  font-size: 14px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.suggest-item .suggest-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.suggest-item .suggest-type {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* ═══════════════════════════════════════════════════════════
    @ File Mention Menu
    ═══════════════════════════════════════════════════════════ */
