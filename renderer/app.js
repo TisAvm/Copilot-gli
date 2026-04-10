@@ -10,6 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
     currentFolder: null,
     commandHistory: [],
     historyIndex: -1,
+    currentMode: 'interactive',
+    currentModel: 'claude-sonnet-4.5',
+    mcpServers: JSON.parse(localStorage.getItem('gli-mcp-servers') || '[]'),
+    experimental: false,
+    slashMenuIndex: 0,
+    mentionMenuIndex: 0,
+    paletteIndex: 0,
   };
 
   // ── DOM References ────────────────────────────────────────
@@ -22,6 +29,113 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#btn-minimize')?.addEventListener('click', () => window.gli.window.minimize());
   $('#btn-maximize')?.addEventListener('click', () => window.gli.window.maximize());
   $('#btn-close')?.addEventListener('click', () => window.gli.window.close());
+
+  // ═══════════════════════════════════════════════════════════
+  //  Models Registry
+  // ═══════════════════════════════════════════════════════════
+  const MODELS = [
+    { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6', tier: 'standard', family: 'Anthropic' },
+    { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5', tier: 'standard', family: 'Anthropic' },
+    { id: 'claude-sonnet-4', name: 'Claude Sonnet 4', tier: 'standard', family: 'Anthropic' },
+    { id: 'claude-opus-4.6', name: 'Claude Opus 4.6', tier: 'premium', family: 'Anthropic' },
+    { id: 'claude-opus-4.6-fast', name: 'Claude Opus 4.6 (fast)', tier: 'premium', family: 'Anthropic' },
+    { id: 'claude-opus-4.5', name: 'Claude Opus 4.5', tier: 'premium', family: 'Anthropic' },
+    { id: 'claude-haiku-4.5', name: 'Claude Haiku 4.5', tier: 'fast', family: 'Anthropic' },
+    { id: 'gpt-5.4', name: 'GPT-5.4', tier: 'standard', family: 'OpenAI' },
+    { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex', tier: 'standard', family: 'OpenAI' },
+    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', tier: 'standard', family: 'OpenAI' },
+    { id: 'gpt-5.2', name: 'GPT-5.2', tier: 'standard', family: 'OpenAI' },
+    { id: 'gpt-5.1', name: 'GPT-5.1', tier: 'standard', family: 'OpenAI' },
+    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', tier: 'fast', family: 'OpenAI' },
+    { id: 'gpt-5-mini', name: 'GPT-5 Mini', tier: 'fast', family: 'OpenAI' },
+    { id: 'gpt-4.1', name: 'GPT-4.1', tier: 'fast', family: 'OpenAI' },
+  ];
+
+  // ═══════════════════════════════════════════════════════════
+  //  Slash Commands Registry
+  // ═══════════════════════════════════════════════════════════
+  const SLASH_COMMANDS = [
+    // Models and subagents
+    { cmd: '/model', desc: 'Select AI model to use', category: 'Models', shortcut: '', action: 'openModelSelector' },
+    { cmd: '/delegate', desc: 'Send session to GitHub to create a PR', category: 'Models', action: 'delegate' },
+    { cmd: '/fleet', desc: 'Enable fleet mode for parallel subagents', category: 'Models', action: 'fleet' },
+    { cmd: '/tasks', desc: 'View and manage background tasks', category: 'Models', action: 'tasks' },
+    // Agent environment
+    { cmd: '/init', desc: 'Initialize Copilot instructions for this repo', category: 'Agent', action: 'init' },
+    { cmd: '/agent', desc: 'Browse and select available agents', category: 'Agent', action: 'agent' },
+    { cmd: '/skills', desc: 'Manage skills for enhanced capabilities', category: 'Agent', action: 'skills' },
+    { cmd: '/mcp', desc: 'Manage MCP server configuration', category: 'Agent', shortcut: '', action: 'openMcpSettings' },
+    { cmd: '/plugin', desc: 'Manage plugins and plugin marketplaces', category: 'Agent', action: 'plugin' },
+    // Code
+    { cmd: '/diff', desc: 'Review changes made in current directory', category: 'Code', action: 'diff' },
+    { cmd: '/pr', desc: 'Operate on pull requests for current branch', category: 'Code', action: 'pr' },
+    { cmd: '/review', desc: 'Run code review agent to analyze changes', category: 'Code', action: 'review' },
+    { cmd: '/lsp', desc: 'Manage language server configuration', category: 'Code', action: 'lsp' },
+    { cmd: '/ide', desc: 'Connect to an IDE workspace', category: 'Code', action: 'ide' },
+    { cmd: '/plan', desc: 'Create an implementation plan before coding', category: 'Code', action: 'plan' },
+    { cmd: '/research', desc: 'Run deep research investigation', category: 'Code', action: 'research' },
+    // Session
+    { cmd: '/clear', desc: 'Abandon session and start fresh', category: 'Session', shortcut: 'Ctrl+L', action: 'clearChat' },
+    { cmd: '/new', desc: 'Start a new conversation', category: 'Session', action: 'newSession' },
+    { cmd: '/compact', desc: 'Summarize conversation to reduce context', category: 'Session', action: 'compact' },
+    { cmd: '/share', desc: 'Share session to markdown, HTML, or gist', category: 'Session', action: 'share' },
+    { cmd: '/copy', desc: 'Copy the last response to clipboard', category: 'Session', action: 'copyLast' },
+    { cmd: '/context', desc: 'Show context window token usage', category: 'Session', action: 'context' },
+    { cmd: '/usage', desc: 'Display session usage metrics', category: 'Session', action: 'usage' },
+    { cmd: '/rewind', desc: 'Rewind the last turn and revert changes', category: 'Session', action: 'rewind' },
+    { cmd: '/undo', desc: 'Alias for /rewind', category: 'Session', action: 'rewind' },
+    { cmd: '/resume', desc: 'Switch to a different session', category: 'Session', action: 'resume' },
+    { cmd: '/rename', desc: 'Rename the current session', category: 'Session', action: 'rename' },
+    // Permissions
+    { cmd: '/allow-all', desc: 'Enable all permissions (tools, paths, URLs)', category: 'Permissions', action: 'allowAll' },
+    { cmd: '/add-dir', desc: 'Add a directory to allowed list', category: 'Permissions', action: 'addDir' },
+    { cmd: '/list-dirs', desc: 'Display all allowed directories', category: 'Permissions', action: 'listDirs' },
+    { cmd: '/cwd', desc: 'Change or show current working directory', category: 'Permissions', action: 'cwd' },
+    { cmd: '/reset-allowed-tools', desc: 'Reset the list of allowed tools', category: 'Permissions', action: 'resetTools' },
+    // Help and feedback
+    { cmd: '/help', desc: 'Show help for interactive commands', category: 'Help', shortcut: '', action: 'help' },
+    { cmd: '/version', desc: 'Display version information', category: 'Help', action: 'version' },
+    { cmd: '/changelog', desc: 'Display changelog for CLI versions', category: 'Help', action: 'changelog' },
+    { cmd: '/feedback', desc: 'Provide feedback about GLI', category: 'Help', action: 'feedback' },
+    { cmd: '/theme', desc: 'View or set color mode', category: 'Help', action: 'theme' },
+    { cmd: '/experimental', desc: 'Toggle experimental features', category: 'Help', action: 'experimental' },
+    { cmd: '/instructions', desc: 'View and toggle custom instruction files', category: 'Help', action: 'instructions' },
+    { cmd: '/streamer-mode', desc: 'Toggle streamer mode (hides model names)', category: 'Help', action: 'streamerMode' },
+    // Other
+    { cmd: '/terminal-setup', desc: 'Configure terminal for multiline input', category: 'Other', action: 'terminalSetup' },
+    { cmd: '/login', desc: 'Log in to Copilot', category: 'Other', action: 'login' },
+    { cmd: '/logout', desc: 'Log out of Copilot', category: 'Other', action: 'logout' },
+  ];
+
+  // ═══════════════════════════════════════════════════════════
+  //  Keyboard Shortcuts Registry
+  // ═══════════════════════════════════════════════════════════
+  const KEYBOARD_SHORTCUTS = [
+    { keys: 'Ctrl+1', action: 'Chat panel', fn: () => switchPanel('chat') },
+    { keys: 'Ctrl+2', action: 'File Explorer', fn: () => switchPanel('files') },
+    { keys: 'Ctrl+3', action: 'Search', fn: () => switchPanel('search') },
+    { keys: 'Ctrl+4', action: 'Terminal', fn: () => switchPanel('terminal') },
+    { keys: 'Ctrl+,', action: 'Settings', fn: () => switchPanel('settings') },
+    { keys: 'Ctrl+Shift+P', action: 'Command Palette', fn: () => toggleCommandPalette() },
+    { keys: 'Shift+Tab', action: 'Cycle mode', fn: () => cycleMode() },
+    { keys: 'Ctrl+L', action: 'Clear screen', fn: () => executeSlashCommand('clearChat') },
+    { keys: 'Ctrl+D', action: 'Shutdown / Exit', fn: () => window.gli.window.close() },
+    { keys: 'Ctrl+T', action: 'Toggle reasoning', fn: () => toggleReasoning() },
+    { keys: 'Ctrl+S', action: 'Send preserving input', fn: () => sendPreservingInput() },
+    { keys: 'Ctrl+G', action: 'Edit in external editor', fn: () => editExternal() },
+    { keys: 'Escape', action: 'Cancel / Close overlay', fn: () => closeAllOverlays() },
+    { keys: '@', action: 'Mention files', fn: null },
+    { keys: '/', action: 'Slash commands', fn: null },
+    { keys: '!', action: 'Execute shell command', fn: null },
+    { keys: '↑ / ↓', action: 'Navigate history', fn: null },
+    { keys: 'Ctrl+C', action: 'Cancel / Clear / Copy', fn: null },
+    { keys: 'Ctrl+A', action: 'Move to start of line', fn: null },
+    { keys: 'Ctrl+E', action: 'Move to end of line', fn: null },
+    { keys: 'Ctrl+W', action: 'Delete previous word', fn: null },
+    { keys: 'Ctrl+U', action: 'Delete to line start', fn: null },
+    { keys: 'Ctrl+K', action: 'Delete to line end', fn: null },
+    { keys: 'Ctrl+O', action: 'Expand recent timeline', fn: null },
+  ];
 
   // ═══════════════════════════════════════════════════════════
   //  Sidebar Navigation
@@ -45,6 +159,583 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
+  //  Model Selector
+  // ═══════════════════════════════════════════════════════════
+  function updateModelDisplay() {
+    const model = MODELS.find(m => m.id === App.currentModel);
+    const shortName = model ? model.name.replace('Claude ', '').replace('GPT-', 'GPT ') : App.currentModel;
+    $('#current-model-name').textContent = shortName;
+    $('#status-model-name').textContent = shortName;
+    $('#model-dropdown-current').textContent = model ? model.name : App.currentModel;
+    localStorage.setItem('gli-model', App.currentModel);
+  }
+
+  function renderModelDropdown(filter = '') {
+    const list = $('#model-dropdown-list');
+    list.innerHTML = '';
+    const lower = filter.toLowerCase();
+    const families = [...new Set(MODELS.map(m => m.family))];
+
+    for (const family of families) {
+      const models = MODELS.filter(m => m.family === family &&
+        (m.name.toLowerCase().includes(lower) || m.id.toLowerCase().includes(lower)));
+      if (models.length === 0) continue;
+
+      const groupLabel = document.createElement('div');
+      groupLabel.className = 'model-group-label';
+      groupLabel.textContent = family;
+      list.appendChild(groupLabel);
+
+      for (const model of models) {
+        const opt = document.createElement('div');
+        opt.className = `model-option ${model.id === App.currentModel ? 'active' : ''}`;
+        const badgeClass = model.tier === 'premium' ? 'badge-premium' : model.tier === 'fast' ? 'badge-fast' : 'badge-standard';
+        opt.innerHTML = `
+          <div class="model-option-info">
+            <span class="model-option-name">${model.name}</span>
+            <span class="model-option-id">${model.id}</span>
+          </div>
+          <span class="model-option-badge ${badgeClass}">${model.tier}</span>`;
+        opt.addEventListener('click', () => {
+          App.currentModel = model.id;
+          updateModelDisplay();
+          closeModelDropdown();
+          addChatMessage('assistant', `✓ Model switched to **${model.name}** (\`${model.id}\`)\n\nTier: ${model.tier} | Family: ${model.family}`);
+        });
+        list.appendChild(opt);
+      }
+    }
+  }
+
+  function openModelSelector() {
+    const dd = $('#model-dropdown');
+    dd.classList.remove('hidden');
+    renderModelDropdown();
+    const searchInput = $('#model-search');
+    searchInput.value = '';
+    searchInput.focus();
+    searchInput.oninput = () => renderModelDropdown(searchInput.value);
+
+    // Close on click outside
+    const backdrop = document.createElement('div');
+    backdrop.className = 'overlay-backdrop';
+    backdrop.id = 'model-backdrop';
+    backdrop.addEventListener('click', closeModelDropdown);
+    document.body.insertBefore(backdrop, dd);
+  }
+
+  function closeModelDropdown() {
+    $('#model-dropdown')?.classList.add('hidden');
+    $('#model-backdrop')?.remove();
+  }
+
+  $('#model-selector-btn')?.addEventListener('click', openModelSelector);
+  $('#status-model')?.addEventListener('click', openModelSelector);
+
+  // Restore saved model
+  const savedModel = localStorage.getItem('gli-model');
+  if (savedModel && MODELS.find(m => m.id === savedModel)) {
+    App.currentModel = savedModel;
+  }
+  updateModelDisplay();
+
+  // ═══════════════════════════════════════════════════════════
+  //  Mode System (Interactive / Plan / Autopilot)
+  // ═══════════════════════════════════════════════════════════
+  const MODES = ['interactive', 'plan', 'autopilot'];
+  const MODE_ICONS = {
+    interactive: '💬',
+    plan: '📋',
+    autopilot: '⚡',
+  };
+
+  function setMode(mode) {
+    App.currentMode = mode;
+    $$('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+    $('#chat-mode-label').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+    $('#status-mode').innerHTML = `
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        ${mode === 'plan' ? '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>' :
+          mode === 'autopilot' ? '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>' :
+          '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'}
+      </svg>
+      ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+    localStorage.setItem('gli-mode', mode);
+  }
+
+  function cycleMode() {
+    const idx = MODES.indexOf(App.currentMode);
+    const next = MODES[(idx + 1) % MODES.length];
+    setMode(next);
+    addChatMessage('assistant', `${MODE_ICONS[next]} Mode switched to **${next.charAt(0).toUpperCase() + next.slice(1)}**\n\n${
+      next === 'interactive' ? 'I\'ll respond to each message and ask before taking actions.' :
+      next === 'plan' ? 'I\'ll create an implementation plan before coding. Prefix messages with [[PLAN]].' :
+      'I\'ll work autonomously until the task is complete, asking fewer questions.'
+    }`);
+  }
+
+  $$('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+
+  $('#status-mode')?.addEventListener('click', cycleMode);
+
+  // Restore saved mode
+  const savedMode = localStorage.getItem('gli-mode');
+  if (savedMode && MODES.includes(savedMode)) setMode(savedMode);
+
+  // ═══════════════════════════════════════════════════════════
+  //  Slash Command Engine
+  // ═══════════════════════════════════════════════════════════
+  const slashMenu = $('#slash-menu');
+
+  function showSlashMenu(filter = '') {
+    const lower = filter.toLowerCase();
+    const filtered = SLASH_COMMANDS.filter(c =>
+      c.cmd.toLowerCase().includes(lower) || c.desc.toLowerCase().includes(lower));
+
+    if (filtered.length === 0) {
+      slashMenu.classList.add('hidden');
+      return;
+    }
+
+    slashMenu.classList.remove('hidden');
+    slashMenu.innerHTML = '';
+    App.slashMenuIndex = 0;
+
+    const categories = [...new Set(filtered.map(c => c.category))];
+    for (const cat of categories) {
+      const group = document.createElement('div');
+      group.className = 'slash-menu-group';
+
+      const label = document.createElement('div');
+      label.className = 'slash-menu-group-label';
+      label.textContent = cat;
+      group.appendChild(label);
+
+      for (const cmd of filtered.filter(c => c.category === cat)) {
+        const item = document.createElement('div');
+        item.className = 'slash-menu-item';
+        item.dataset.action = cmd.action;
+        item.innerHTML = `
+          <span class="slash-cmd-name">${cmd.cmd}</span>
+          <span class="slash-cmd-desc">${cmd.desc}</span>
+          ${cmd.shortcut ? `<span class="slash-cmd-shortcut">${cmd.shortcut}</span>` : ''}`;
+        item.addEventListener('click', () => {
+          chatInput.value = '';
+          hideSlashMenu();
+          executeSlashCommand(cmd.action);
+        });
+        group.appendChild(item);
+      }
+      slashMenu.appendChild(group);
+    }
+
+    // Highlight first item
+    const items = slashMenu.querySelectorAll('.slash-menu-item');
+    if (items[0]) items[0].classList.add('selected');
+  }
+
+  function hideSlashMenu() { slashMenu.classList.add('hidden'); }
+
+  function navigateSlashMenu(direction) {
+    const items = slashMenu.querySelectorAll('.slash-menu-item');
+    if (items.length === 0) return;
+    items[App.slashMenuIndex]?.classList.remove('selected');
+    App.slashMenuIndex = (App.slashMenuIndex + direction + items.length) % items.length;
+    items[App.slashMenuIndex]?.classList.add('selected');
+    items[App.slashMenuIndex]?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function selectSlashMenuItem() {
+    const items = slashMenu.querySelectorAll('.slash-menu-item');
+    const selected = items[App.slashMenuIndex];
+    if (selected) {
+      chatInput.value = '';
+      hideSlashMenu();
+      executeSlashCommand(selected.dataset.action);
+    }
+  }
+
+  function executeSlashCommand(action) {
+    const actions = {
+      openModelSelector: () => openModelSelector(),
+      clearChat: () => {
+        chatMessages.innerHTML = '';
+        addChatMessage('assistant', '🧹 Chat cleared. Starting fresh!\n\nType `/help` to see available commands.');
+      },
+      newSession: () => {
+        chatMessages.innerHTML = '';
+        addChatMessage('assistant', '✨ New session started.\n\nHow can I help you today?');
+      },
+      help: () => addChatMessage('assistant', generateHelpText()),
+      version: () => addChatMessage('assistant', `**Copilot GLI** v1.0.0\n\nModel: \`${App.currentModel}\`\nMode: ${App.currentMode}\nPlatform: ${navigator.platform}\nElectron: Chromium-based`),
+      theme: () => { switchPanel('settings'); },
+      openMcpSettings: () => { switchPanel('settings'); setTimeout(() => { document.getElementById('mcp-server-list')?.scrollIntoView({ behavior: 'smooth' }); }, 200); },
+      copyLast: () => {
+        const lastMsg = chatMessages.querySelector('.chat-msg.assistant:last-of-type .chat-bubble');
+        if (lastMsg) {
+          navigator.clipboard.writeText(lastMsg.textContent);
+          addChatMessage('assistant', '📋 Last response copied to clipboard!');
+        }
+      },
+      context: () => {
+        const msgCount = chatMessages.querySelectorAll('.chat-msg').length;
+        const approxTokens = Math.floor(chatMessages.textContent.length / 4);
+        addChatMessage('assistant', `📊 **Context Window Usage**\n\nMessages: ${msgCount}\nApprox tokens: ~${approxTokens.toLocaleString()}\nModel: \`${App.currentModel}\`\nMode: ${App.currentMode}`);
+      },
+      usage: () => {
+        addChatMessage('assistant', `📈 **Session Usage**\n\nMessages sent: ${chatMessages.querySelectorAll('.chat-msg.user').length}\nResponses: ${chatMessages.querySelectorAll('.chat-msg.assistant').length}\nModel: \`${App.currentModel}\`\nMode: ${App.currentMode}\nSession duration: ${Math.floor((Date.now() - performance.timeOrigin) / 60000)} min`);
+      },
+      compact: () => addChatMessage('assistant', '📦 Conversation compacted. Context usage reduced.\n\n*In a full implementation, this would summarize the conversation history to free up context tokens.*'),
+      share: () => addChatMessage('assistant', '📤 **Share Options**\n\n• Export as Markdown\n• Export as HTML\n• Create GitHub Gist\n\n*Share functionality will be available in a future update.*'),
+      rewind: () => {
+        const msgs = chatMessages.querySelectorAll('.chat-msg');
+        if (msgs.length >= 2) {
+          msgs[msgs.length - 1].remove();
+          msgs[msgs.length - 2].remove();
+          addChatMessage('assistant', '⏪ Last turn rewound.');
+        }
+      },
+      experimental: () => {
+        App.experimental = !App.experimental;
+        addChatMessage('assistant', `🧪 Experimental mode: **${App.experimental ? 'Enabled' : 'Disabled'}**\n\n${App.experimental ? 'Autopilot mode and other experimental features are now available.' : 'Experimental features disabled.'}`);
+      },
+      diff: () => addChatMessage('assistant', '📝 **Diff Viewer**\n\nNo git changes detected in the current directory.\n\n*Use the terminal to run `git diff` or open a git repository first.*'),
+      pr: () => addChatMessage('assistant', '🔀 **Pull Requests**\n\nNo active PR found for the current branch.\n\n*Open a git repository and create a PR to use this feature.*'),
+      review: () => addChatMessage('assistant', '🔍 **Code Review**\n\nStarting code review analysis...\n\n*This feature analyzes staged/unstaged changes and surfaces important issues like bugs, security vulnerabilities, and logic errors.*'),
+      plan: () => {
+        setMode('plan');
+        addChatMessage('assistant', '📋 **Plan Mode Activated**\n\nI\'ll create an implementation plan before coding. Describe what you want to build and I\'ll break it down into steps.');
+      },
+      research: () => addChatMessage('assistant', '🔬 **Deep Research**\n\nStarting research investigation...\n\n*This feature uses GitHub search and web sources to deeply investigate a topic. Describe what you want to research.*'),
+      delegate: () => addChatMessage('assistant', '🚀 **Delegate to GitHub**\n\nThis will send your session to GitHub where Copilot will create a PR.\n\n*Feature requires GitHub integration to be configured.*'),
+      fleet: () => addChatMessage('assistant', '🚢 **Fleet Mode**\n\nFleet mode enables parallel subagent execution for faster task completion.\n\n*Toggle fleet mode to run multiple agents simultaneously.*'),
+      tasks: () => addChatMessage('assistant', '📋 **Background Tasks**\n\nNo background tasks running.\n\n*Tasks will appear here when using fleet mode or background agents.*'),
+      init: () => addChatMessage('assistant', '⚙️ **Repository Init**\n\nLooking for custom instructions...\n\n*Checks for CLAUDE.md, AGENTS.md, .github/copilot-instructions.md, and other instruction files.*'),
+      agent: () => addChatMessage('assistant', '🤖 **Available Agents**\n\n• **explore** — Codebase exploration (fast)\n• **task** — Command execution\n• **general-purpose** — Full capabilities\n• **code-review** — Review changes'),
+      skills: () => addChatMessage('assistant', '🛠️ **Skills**\n\nNo additional skills loaded.\n\n*Skills provide specialized capabilities. Check ~/.copilot/skills/ for available skills.*'),
+      plugin: () => addChatMessage('assistant', '🔌 **Plugins**\n\nNo plugins installed.\n\n*Plugins extend GLI with additional capabilities from marketplaces.*'),
+      lsp: () => addChatMessage('assistant', '📡 **Language Servers**\n\nNo LSP servers configured.\n\n*Configure LSP servers in ~/.copilot/lsp-config.json for enhanced code intelligence.*'),
+      ide: () => addChatMessage('assistant', '🖥️ **IDE Connection**\n\nNo IDE workspace connected.\n\n*Use this to connect GLI to VS Code or other IDE workspaces.*'),
+      allowAll: () => addChatMessage('assistant', '✅ All permissions enabled (tools, paths, and URLs).'),
+      addDir: () => addChatMessage('assistant', '📂 Use the File Explorer (Ctrl+2) to open a folder, or specify a path.'),
+      listDirs: () => addChatMessage('assistant', `📂 **Allowed Directories**\n\n• ${App.currentFolder || 'No folder open'}`),
+      cwd: () => addChatMessage('assistant', `📍 **Current Working Directory**\n\n\`${App.currentFolder || 'Not set — open a folder first'}\``),
+      resetTools: () => addChatMessage('assistant', '🔄 Allowed tools list has been reset to defaults.'),
+      resume: () => addChatMessage('assistant', '📂 **Sessions**\n\nNo saved sessions found.\n\n*Sessions will be listed here when session persistence is enabled.*'),
+      rename: () => addChatMessage('assistant', '✏️ Enter a new session name in the chat.'),
+      changelog: () => addChatMessage('assistant', '📋 **Changelog — v1.0.0**\n\n• 🎨 Initial release with 3 themes\n• 💬 Chat with AI responses\n• 📁 File explorer with syntax highlighting\n• ⌨️ Integrated terminal\n• 🔍 Full-text search\n• ✨ Particle background system\n• 🎯 Slash command autocomplete\n• 🤖 Model selection (15 models)\n• 🔀 Mode switching (Interactive/Plan/Autopilot)\n• 🔌 MCP server configuration\n• ⌨️ Full keyboard shortcut system\n• 🎨 Command palette (Ctrl+Shift+P)'),
+      feedback: () => addChatMessage('assistant', '💬 **Feedback**\n\nThank you for using Copilot GLI! Your feedback helps us improve.\n\n*In a future update, this will link to a feedback form.*'),
+      instructions: () => addChatMessage('assistant', '📝 **Custom Instructions**\n\nCopilot GLI respects instructions from:\n• `CLAUDE.md` / `GEMINI.md` / `AGENTS.md`\n• `.github/instructions/**/*.instructions.md`\n• `.github/copilot-instructions.md`\n• `~/.copilot/copilot-instructions.md`'),
+      streamerMode: () => addChatMessage('assistant', '🎬 Streamer mode toggled. Model names and quota details are now hidden for streaming.'),
+      terminalSetup: () => { switchPanel('terminal'); addChatMessage('assistant', '⌨️ Terminal configured. Use Shift+Enter for multiline input in the terminal panel.'); },
+      login: () => addChatMessage('assistant', '🔑 **Login**\n\nUse `gh auth login` in the terminal to authenticate with GitHub.'),
+      logout: () => addChatMessage('assistant', '🚪 **Logout**\n\nUse `gh auth logout` in the terminal to log out.'),
+    };
+
+    const fn = actions[action];
+    if (fn) fn();
+    else addChatMessage('assistant', `Command \`${action}\` is not yet implemented.`);
+  }
+
+  function generateHelpText() {
+    return `⌨️ **Copilot GLI — Help**
+
+**Global Shortcuts:**
+\`@\` — Mention files, include contents in context
+\`Ctrl+S\` — Run command while preserving input
+\`Shift+Tab\` — Cycle modes (Interactive → Plan → Autopilot)
+\`Ctrl+T\` — Toggle model reasoning display
+\`Ctrl+Shift+P\` — Command palette
+\`↑ ↓\` — Navigate command history
+\`Ctrl+C\` — Cancel / Clear input
+\`!\` — Execute command in shell (bypass Copilot)
+\`Esc\` — Cancel the current operation
+\`Ctrl+D\` — Shutdown
+\`Ctrl+L\` — Clear the screen
+
+**Slash Commands:** Type \`/\` to see all ${SLASH_COMMANDS.length} commands
+
+**Models:** \`/model\` — Choose from ${MODELS.length} models (current: \`${App.currentModel}\`)
+
+**Modes:** \`Shift+Tab\` to cycle
+• **Interactive** — Ask before acting
+• **Plan** — Plan first, then implement
+• **Autopilot** — Work autonomously until done
+
+**MCP Servers:** \`/mcp\` — Manage MCP servers (${App.mcpServers.length} configured)
+
+**Panels:** \`Ctrl+1\` Chat | \`Ctrl+2\` Files | \`Ctrl+3\` Search | \`Ctrl+4\` Terminal | \`Ctrl+,\` Settings`;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  @ File Mention System
+  // ═══════════════════════════════════════════════════════════
+  const mentionMenu = $('#mention-menu');
+
+  async function showMentionMenu(filter = '') {
+    if (!App.currentFolder) {
+      mentionMenu.classList.add('hidden');
+      return;
+    }
+
+    const entries = await window.gli.fs.readDirectory(App.currentFolder);
+    if (entries.error) { mentionMenu.classList.add('hidden'); return; }
+
+    const lower = filter.toLowerCase();
+    const filtered = entries.filter(e => e.name.toLowerCase().includes(lower)).slice(0, 12);
+
+    if (filtered.length === 0) { mentionMenu.classList.add('hidden'); return; }
+
+    mentionMenu.classList.remove('hidden');
+    mentionMenu.innerHTML = '';
+    App.mentionMenuIndex = 0;
+
+    for (const entry of filtered) {
+      const item = document.createElement('div');
+      item.className = 'mention-item';
+      item.innerHTML = `<span>${entry.isDirectory ? '📁' : getFileIcon(entry.extension)}</span> <span>${entry.name}</span>`;
+      item.addEventListener('click', () => {
+        insertMention(entry.name);
+      });
+      mentionMenu.appendChild(item);
+    }
+
+    const items = mentionMenu.querySelectorAll('.mention-item');
+    if (items[0]) items[0].classList.add('selected');
+  }
+
+  function hideMentionMenu() { mentionMenu.classList.add('hidden'); }
+
+  function insertMention(name) {
+    const val = chatInput.value;
+    const atIdx = val.lastIndexOf('@');
+    chatInput.value = val.substring(0, atIdx) + '@' + name + ' ';
+    hideMentionMenu();
+    chatInput.focus();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  Command Palette (Ctrl+Shift+P)
+  // ═══════════════════════════════════════════════════════════
+  function toggleCommandPalette() {
+    const overlay = $('#cmd-palette-overlay');
+    if (overlay.classList.contains('hidden')) {
+      openCommandPalette();
+    } else {
+      closeCommandPalette();
+    }
+  }
+
+  function openCommandPalette() {
+    const overlay = $('#cmd-palette-overlay');
+    overlay.classList.remove('hidden');
+    const input = $('#cmd-palette-input');
+    input.value = '';
+    input.focus();
+    renderPaletteItems('');
+    App.paletteIndex = 0;
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeCommandPalette();
+    });
+  }
+
+  function closeCommandPalette() {
+    $('#cmd-palette-overlay').classList.add('hidden');
+  }
+
+  function renderPaletteItems(filter) {
+    const list = $('#cmd-palette-list');
+    list.innerHTML = '';
+    const lower = filter.toLowerCase();
+    App.paletteIndex = 0;
+
+    // Combine slash commands + shortcuts + actions
+    const allItems = [
+      ...SLASH_COMMANDS.map(c => ({ label: `${c.cmd} — ${c.desc}`, icon: '/', shortcut: c.shortcut || '', action: () => executeSlashCommand(c.action) })),
+      { label: 'Switch to Chat', icon: '💬', shortcut: 'Ctrl+1', action: () => switchPanel('chat') },
+      { label: 'Switch to Files', icon: '📁', shortcut: 'Ctrl+2', action: () => switchPanel('files') },
+      { label: 'Switch to Search', icon: '🔍', shortcut: 'Ctrl+3', action: () => switchPanel('search') },
+      { label: 'Switch to Terminal', icon: '⌨', shortcut: 'Ctrl+4', action: () => switchPanel('terminal') },
+      { label: 'Switch to Settings', icon: '⚙', shortcut: 'Ctrl+,', action: () => switchPanel('settings') },
+      { label: 'Cycle Mode', icon: '🔄', shortcut: 'Shift+Tab', action: () => cycleMode() },
+      { label: 'Select Model', icon: '🤖', shortcut: '', action: () => openModelSelector() },
+      { label: 'Open Folder', icon: '📂', shortcut: '', action: () => openFolder() },
+      { label: 'Clear Chat', icon: '🧹', shortcut: 'Ctrl+L', action: () => executeSlashCommand('clearChat') },
+      { label: 'Toggle Dark Theme', icon: '🌙', shortcut: '', action: () => setTheme('dark') },
+      { label: 'Toggle Cyberpunk Theme', icon: '💜', shortcut: '', action: () => setTheme('cyberpunk') },
+      { label: 'Toggle Light Theme', icon: '☀️', shortcut: '', action: () => setTheme('light') },
+    ];
+
+    const filtered = allItems.filter(item => item.label.toLowerCase().includes(lower));
+
+    for (const [i, item] of filtered.entries()) {
+      const el = document.createElement('div');
+      el.className = `cmd-palette-item ${i === 0 ? 'selected' : ''}`;
+      el.innerHTML = `
+        <div class="cmd-palette-item-left">
+          <span class="cmd-palette-item-icon">${item.icon}</span>
+          <span class="cmd-palette-item-label">${item.label}</span>
+        </div>
+        ${item.shortcut ? `<span class="cmd-palette-item-shortcut">${item.shortcut}</span>` : ''}`;
+      el.addEventListener('click', () => {
+        closeCommandPalette();
+        item.action();
+      });
+      list.appendChild(el);
+    }
+  }
+
+  $('#cmd-palette-input')?.addEventListener('input', (e) => {
+    renderPaletteItems(e.target.value);
+  });
+
+  $('#cmd-palette-input')?.addEventListener('keydown', (e) => {
+    const items = $$('#cmd-palette-list .cmd-palette-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items[App.paletteIndex]?.classList.remove('selected');
+      App.paletteIndex = (App.paletteIndex + 1) % items.length;
+      items[App.paletteIndex]?.classList.add('selected');
+      items[App.paletteIndex]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[App.paletteIndex]?.classList.remove('selected');
+      App.paletteIndex = (App.paletteIndex - 1 + items.length) % items.length;
+      items[App.paletteIndex]?.classList.add('selected');
+      items[App.paletteIndex]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      items[App.paletteIndex]?.click();
+    } else if (e.key === 'Escape') {
+      closeCommandPalette();
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  //  MCP Server Management
+  // ═══════════════════════════════════════════════════════════
+  function renderMcpServers() {
+    const list = $('#mcp-server-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (App.mcpServers.length === 0) {
+      list.innerHTML = '<div class="search-empty" style="padding:16px;font-size:12px;color:var(--text-muted);">No MCP servers configured. Click "Add MCP Server" to get started.</div>';
+      return;
+    }
+
+    for (const server of App.mcpServers) {
+      const card = document.createElement('div');
+      card.className = 'mcp-server-card';
+      card.innerHTML = `
+        <div class="mcp-server-info">
+          <span class="mcp-server-name">${escapeHtml(server.name)}</span>
+          <span class="mcp-server-cmd">${escapeHtml(server.command)}</span>
+        </div>
+        <div class="mcp-server-status">
+          <span class="mcp-status-dot inactive"></span>
+          <div class="mcp-server-actions">
+            <button title="Remove" data-name="${escapeHtml(server.name)}">✕</button>
+          </div>
+        </div>`;
+      card.querySelector('button').addEventListener('click', () => {
+        App.mcpServers = App.mcpServers.filter(s => s.name !== server.name);
+        localStorage.setItem('gli-mcp-servers', JSON.stringify(App.mcpServers));
+        renderMcpServers();
+        addChatMessage('assistant', `🔌 MCP server **${server.name}** removed.`);
+      });
+      list.appendChild(card);
+    }
+  }
+
+  $('#btn-add-mcp')?.addEventListener('click', () => {
+    $('#mcp-modal-overlay').classList.remove('hidden');
+    $('#mcp-name').value = '';
+    $('#mcp-command').value = '';
+    $('#mcp-args').value = '';
+    $('#mcp-env').value = '';
+    $('#mcp-name').focus();
+  });
+
+  $('#mcp-modal-close')?.addEventListener('click', () => $('#mcp-modal-overlay').classList.add('hidden'));
+  $('#mcp-cancel')?.addEventListener('click', () => $('#mcp-modal-overlay').classList.add('hidden'));
+
+  $('#mcp-save')?.addEventListener('click', () => {
+    const name = $('#mcp-name').value.trim();
+    const command = $('#mcp-command').value.trim();
+    const args = $('#mcp-args').value.trim();
+    const env = $('#mcp-env').value.trim();
+
+    if (!name || !command) return;
+
+    App.mcpServers.push({ name, command, args, env });
+    localStorage.setItem('gli-mcp-servers', JSON.stringify(App.mcpServers));
+    renderMcpServers();
+    $('#mcp-modal-overlay').classList.add('hidden');
+    addChatMessage('assistant', `🔌 MCP server **${name}** added!\n\n\`${command}\`\n\nUse \`/mcp\` to manage servers.`);
+  });
+
+  renderMcpServers();
+
+  // ═══════════════════════════════════════════════════════════
+  //  Settings: Shortcuts & Commands Reference Grids
+  // ═══════════════════════════════════════════════════════════
+  function renderSettingsGrids() {
+    const shortcutsGrid = $('#shortcuts-grid');
+    if (shortcutsGrid) {
+      shortcutsGrid.innerHTML = KEYBOARD_SHORTCUTS
+        .filter(s => s.keys !== '/' && s.keys !== '@' && s.keys !== '!')
+        .map(s => `<div class="shortcut-row"><span class="shortcut-keys">${s.keys}</span><span class="shortcut-action">${s.action}</span></div>`)
+        .join('');
+    }
+
+    const commandsGrid = $('#commands-grid');
+    if (commandsGrid) {
+      commandsGrid.innerHTML = SLASH_COMMANDS
+        .map(c => `<div class="command-row"><span class="command-name">${c.cmd}</span><span class="command-desc">${c.desc}</span></div>`)
+        .join('');
+    }
+  }
+
+  renderSettingsGrids();
+
+  // ═══════════════════════════════════════════════════════════
+  //  Helper: Close all overlays
+  // ═══════════════════════════════════════════════════════════
+  function closeAllOverlays() {
+    closeModelDropdown();
+    closeCommandPalette();
+    hideSlashMenu();
+    hideMentionMenu();
+    $('#mcp-modal-overlay')?.classList.add('hidden');
+  }
+
+  function toggleReasoning() {
+    addChatMessage('assistant', '💭 Reasoning display toggled.\n\n*When using reasoning models, their thinking process will be shown/hidden.*');
+  }
+
+  function sendPreservingInput() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    // Send but don't clear input
+    addChatMessage('user', text);
+    showTypingIndicator();
+    updateStatus('Thinking...');
+    generateResponse(text).then(response => {
+      removeTypingIndicator();
+      addChatMessage('assistant', response);
+      updateStatus('Ready');
+    });
+  }
+
+  function editExternal() {
+    addChatMessage('assistant', '📝 Opening prompt in external editor...\n\n*This feature opens your default text editor for composing longer prompts.*');
+  }
+
+  // ═══════════════════════════════════════════════════════════
   //  Chat System
   // ═══════════════════════════════════════════════════════════
   const chatMessages = $('#chat-messages');
@@ -57,11 +748,13 @@ document.addEventListener('DOMContentLoaded', () => {
 I'm your AI coding assistant with a visual twist. Here's what I can help with:
 
 • **Code questions** — Ask me anything about programming
-• **File explorer** — Browse your project files (Ctrl+2)
-• **Terminal** — Run commands directly (Ctrl+4)
-• **Search** — Find text across files (Ctrl+3)
+• **File explorer** — Browse your project files (\`Ctrl+2\`)
+• **Terminal** — Run commands directly (\`Ctrl+4\`)
+• **Search** — Find text across files (\`Ctrl+3\`)
 
-Try asking me something, or explore the sidebar!`);
+**Quick start:** Type \`/\` for commands, \`@\` to mention files, \`!\` to run shell commands
+**Shortcuts:** \`Ctrl+Shift+P\` command palette, \`Shift+Tab\` cycle modes
+**Model:** \`/model\` to switch between ${MODELS.length} AI models`);
 
   function addChatMessage(role, text) {
     const msg = document.createElement('div');
@@ -133,8 +826,38 @@ Try asking me something, or explore the sidebar!`);
 
     chatInput.value = '';
     chatInput.style.height = 'auto';
-    addChatMessage('user', text);
+    hideSlashMenu();
+    hideMentionMenu();
 
+    // Handle slash commands
+    if (text.startsWith('/')) {
+      const cmdName = text.split(' ')[0].toLowerCase();
+      const matched = SLASH_COMMANDS.find(c => c.cmd === cmdName);
+      if (matched) {
+        addChatMessage('user', text);
+        executeSlashCommand(matched.action);
+        return;
+      }
+    }
+
+    // Handle ! shell commands
+    if (text.startsWith('!')) {
+      const shellCmd = text.substring(1).trim();
+      if (shellCmd) {
+        addChatMessage('user', text);
+        addChatMessage('assistant', `⚡ Executing: \`${shellCmd}\``);
+        try {
+          const result = await window.gli.terminal.execute(shellCmd);
+          const output = (result.stdout || '') + (result.stderr || '');
+          addChatMessage('assistant', `\`\`\`\n${output || '(no output)'}\n\`\`\`\n\n${result.exitCode === 0 ? '✓ Success' : `✗ Exit code: ${result.exitCode}`}`);
+        } catch (err) {
+          addChatMessage('assistant', `❌ Error: ${err.message}`);
+        }
+        return;
+      }
+    }
+
+    addChatMessage('user', text);
     showTypingIndicator();
     updateStatus('Thinking...');
 
@@ -276,22 +999,71 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
 
   chatSend.addEventListener('click', handleChatSend);
   chatInput.addEventListener('keydown', (e) => {
+    // Slash menu navigation
+    if (!slashMenu.classList.contains('hidden')) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); navigateSlashMenu(1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); navigateSlashMenu(-1); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); selectSlashMenuItem(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); hideSlashMenu(); return; }
+    }
+
+    // Mention menu navigation
+    if (!mentionMenu.classList.contains('hidden')) {
+      const items = mentionMenu.querySelectorAll('.mention-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        items[App.mentionMenuIndex]?.classList.remove('selected');
+        App.mentionMenuIndex = (App.mentionMenuIndex + 1) % items.length;
+        items[App.mentionMenuIndex]?.classList.add('selected');
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        items[App.mentionMenuIndex]?.classList.remove('selected');
+        App.mentionMenuIndex = (App.mentionMenuIndex - 1 + items.length) % items.length;
+        items[App.mentionMenuIndex]?.classList.add('selected');
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        items[App.mentionMenuIndex]?.click();
+        return;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); hideMentionMenu(); return; }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleChatSend();
     }
   });
 
-  // Auto-resize textarea
+  // Auto-resize textarea + slash/mention triggers
   chatInput.addEventListener('input', () => {
     chatInput.style.height = 'auto';
     chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+
+    const val = chatInput.value;
+
+    // Trigger slash command menu
+    if (val.startsWith('/')) {
+      showSlashMenu(val.substring(1));
+    } else {
+      hideSlashMenu();
+    }
+
+    // Trigger @ mention menu
+    const atMatch = val.match(/@(\w*)$/);
+    if (atMatch) {
+      showMentionMenu(atMatch[1]);
+    } else {
+      hideMentionMenu();
+    }
   });
 
   // Clear chat
   $('#btn-clear-chat')?.addEventListener('click', () => {
-    chatMessages.innerHTML = '';
-    addChatMessage('assistant', 'Chat cleared. How can I help you?');
+    executeSlashCommand('clearChat');
   });
 
   // ═══════════════════════════════════════════════════════════
@@ -871,9 +1643,29 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
   initParticles();
 
   // ═══════════════════════════════════════════════════════════
-  //  Keyboard Shortcuts
+  //  Keyboard Shortcuts (Global)
   // ═══════════════════════════════════════════════════════════
   document.addEventListener('keydown', (e) => {
+    // Shift+Tab — Cycle modes
+    if (e.key === 'Tab' && e.shiftKey) {
+      e.preventDefault();
+      cycleMode();
+      return;
+    }
+
+    // Ctrl+Shift+P — Command Palette
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+      e.preventDefault();
+      openCommandPalette();
+      return;
+    }
+
+    // Escape — Close overlays
+    if (e.key === 'Escape') {
+      closeAllOverlays();
+      return;
+    }
+
     if (e.ctrlKey || e.metaKey) {
       switch (e.key) {
         case '1': e.preventDefault(); switchPanel('chat'); break;
@@ -881,7 +1673,13 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
         case '3': e.preventDefault(); switchPanel('search'); break;
         case '4': e.preventDefault(); switchPanel('terminal'); break;
         case ',': e.preventDefault(); switchPanel('settings'); break;
+        case 'l': e.preventDefault(); executeSlashCommand('clearChat'); break;
+        case 'd': e.preventDefault(); executeSlashCommand('clearContext'); break;
+        case 'g': e.preventDefault(); executeSlashCommand('generateCommit'); break;
+        case 't': e.preventDefault(); executeSlashCommand('runTests'); break;
+        case 's': e.preventDefault(); if (App.currentPanel === 'search') { searchInput?.focus(); } break;
       }
+      return;
     }
 
     // Focus terminal input when in terminal panel

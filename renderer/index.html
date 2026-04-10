@@ -95,23 +95,66 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Copilot Chat
           </h2>
-          <button class="header-action" id="btn-clear-chat" title="Clear chat">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          </button>
+          <div class="chat-header-controls">
+            <!-- Mode Selector -->
+            <div class="mode-selector" id="mode-selector" title="Shift+Tab to cycle">
+              <button class="mode-btn active" data-mode="interactive">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Interactive
+              </button>
+              <button class="mode-btn" data-mode="plan">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Plan
+              </button>
+              <button class="mode-btn" data-mode="autopilot">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Autopilot
+              </button>
+            </div>
+            <!-- Model Selector -->
+            <button class="model-selector-btn" id="model-selector-btn" title="Select model (/model)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span id="current-model-name">Sonnet 4.5</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="header-action" id="btn-clear-chat" title="Clear (/clear)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
         </div>
         <div class="chat-messages" id="chat-messages"></div>
         <div class="chat-input-wrapper">
           <div class="chat-input-container">
-            <textarea id="chat-input" rows="1" placeholder="Ask Copilot GLI anything..." spellcheck="false"></textarea>
+            <span class="input-prefix" id="input-prefix"></span>
+            <textarea id="chat-input" rows="1" placeholder="Ask Copilot GLI anything... (type / for commands, @ for files)" spellcheck="false"></textarea>
             <button class="chat-send-btn" id="chat-send" title="Send (Enter)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
             </button>
           </div>
-          <p class="chat-disclaimer">Copilot GLI may produce inaccurate responses. Verify important information.</p>
+          <!-- Slash Command Autocomplete -->
+          <div class="slash-menu hidden" id="slash-menu"></div>
+          <!-- @ File Mention Menu -->
+          <div class="mention-menu hidden" id="mention-menu"></div>
+          <div class="chat-input-footer">
+            <p class="chat-disclaimer">Copilot GLI may produce inaccurate responses. Verify important information.</p>
+            <span class="chat-mode-label" id="chat-mode-label">Interactive</span>
+          </div>
         </div>
       </section>
+
+      <!-- ═══ Model Selector Dropdown ═══ -->
+      <div class="model-dropdown hidden" id="model-dropdown">
+        <div class="model-dropdown-header">
+          <h3>Select Model</h3>
+          <span class="model-dropdown-hint">Current: <strong id="model-dropdown-current">Claude Sonnet 4.5</strong></span>
+        </div>
+        <div class="model-dropdown-search">
+          <input type="text" id="model-search" placeholder="Search models..." spellcheck="false" />
+        </div>
+        <div class="model-dropdown-list" id="model-dropdown-list"></div>
+      </div>
 
       <!-- Panel: File Explorer -->
       <section class="panel" id="panel-files">
@@ -261,6 +304,27 @@
               </label>
             </div>
           </div>
+          <!-- MCP Configuration -->
+          <div class="settings-group">
+            <h3 class="settings-group-title">MCP Servers</h3>
+            <p class="settings-group-desc">Model Context Protocol servers extend Copilot GLI capabilities</p>
+            <div class="mcp-server-list" id="mcp-server-list"></div>
+            <button class="btn-accent btn-sm" id="btn-add-mcp">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add MCP Server
+            </button>
+          </div>
+          <!-- Shortcuts Reference -->
+          <div class="settings-group">
+            <h3 class="settings-group-title">Keyboard Shortcuts</h3>
+            <div class="shortcuts-grid" id="shortcuts-grid"></div>
+          </div>
+          <!-- Slash Commands Reference -->
+          <div class="settings-group">
+            <h3 class="settings-group-title">Slash Commands</h3>
+            <p class="settings-group-desc">Type <code>/</code> in the chat to see all commands</p>
+            <div class="commands-grid" id="commands-grid"></div>
+          </div>
           <div class="settings-group">
             <h3 class="settings-group-title">About</h3>
             <div class="about-card">
@@ -282,6 +346,49 @@
     </main>
   </div>
 
+  <!-- ═══ Command Palette ═══ -->
+  <div class="cmd-palette-overlay hidden" id="cmd-palette-overlay">
+    <div class="cmd-palette" id="cmd-palette">
+      <div class="cmd-palette-input-wrapper">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="cmd-palette-input" placeholder="Type a command..." spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="cmd-palette-list" id="cmd-palette-list"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MCP Add Server Modal ═══ -->
+  <div class="modal-overlay hidden" id="mcp-modal-overlay">
+    <div class="modal" id="mcp-modal">
+      <div class="modal-header">
+        <h3>Add MCP Server</h3>
+        <button class="header-action" id="mcp-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Server Name</label>
+          <input type="text" id="mcp-name" placeholder="e.g. github, filesystem" />
+        </div>
+        <div class="form-group">
+          <label>Command</label>
+          <input type="text" id="mcp-command" placeholder="e.g. npx -y @modelcontextprotocol/server-github" />
+        </div>
+        <div class="form-group">
+          <label>Arguments (comma-separated)</label>
+          <input type="text" id="mcp-args" placeholder="e.g. --token, YOUR_TOKEN" />
+        </div>
+        <div class="form-group">
+          <label>Environment Variables (KEY=VALUE, one per line)</label>
+          <textarea id="mcp-env" rows="3" placeholder="GITHUB_TOKEN=ghp_xxx"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="mcp-cancel">Cancel</button>
+        <button class="btn-accent" id="mcp-save">Add Server</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ Status Bar ═══ -->
   <footer class="statusbar" id="statusbar">
     <div class="statusbar-left">
@@ -289,13 +396,26 @@
         <span class="status-dot pulse"></span>
         <span id="status-text">Ready</span>
       </span>
+      <span class="status-separator">│</span>
+      <span class="status-item status-mode" id="status-mode" title="Shift+Tab to cycle mode">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Interactive
+      </span>
+    </div>
+    <div class="statusbar-center">
+      <span class="status-item status-shortcut-hint">Ctrl+Shift+P Command Palette</span>
     </div>
     <div class="statusbar-right">
       <span class="status-item" id="status-file">No file open</span>
       <span class="status-separator">│</span>
+      <span class="status-item status-model" id="status-model" title="Click to change model">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span id="status-model-name">Sonnet 4.5</span>
+      </span>
+      <span class="status-separator">│</span>
       <span class="status-item">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        Copilot GLI
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        GLI v1.0.0
       </span>
     </div>
   </footer>
