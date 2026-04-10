@@ -4,12 +4,12 @@
 
 ### *Where CLI is text, GLI is visual.*
 
-**Your personal AI operating system** — a stunning desktop app with real AI (200+ models), Telegram integration, full PC control, browser automation, and Obsidian knowledge management.
+**Your personal AI operating system** — a stunning desktop app powered by GitHub Copilot. If you have Copilot CLI, just clone and run. **Zero config. No API keys.**
 
-![Version](https://img.shields.io/badge/version-2.0.0-7c3aed?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-2.1.0-7c3aed?style=for-the-badge)
 ![Electron](https://img.shields.io/badge/Electron-28-47848F?style=for-the-badge&logo=electron)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![OpenRouter](https://img.shields.io/badge/OpenRouter-200%2B%20models-ff6b35?style=for-the-badge)
+![Copilot](https://img.shields.io/badge/GitHub%20Copilot-Powered-000?style=for-the-badge&logo=githubcopilot)
 
 </div>
 
@@ -19,7 +19,7 @@
 
 GLI (Graphical Language Interface) is the **GUI counterpart to GitHub Copilot CLI**. While CLI is command-line, GLI is a full desktop app — glassmorphism panels, particle effects, 9 feature panels, 65+ slash commands, Telegram bot control, system management, browser automation, and Obsidian knowledge management.
 
-Think of it as your **AI-powered desktop OS** — inspired by [OpenClaw](https://github.com/AgiFlow/openclaw), but built for developers.
+**Already have Copilot CLI?** You're ready. GLI uses your existing `gh` authentication — no API keys, no setup, no cost.
 
 ---
 
@@ -33,24 +33,54 @@ cd Copilot-gli
 # 2. Install dependencies
 npm install
 
-# 3. Configure (optional — see .env.example)
-cp .env.example .env
-# Edit .env with your API keys
-
-# 4. Launch
+# 3. Launch (that's it — if you have gh CLI, AI works instantly)
 npm start
 
 # Launch with DevTools
 npm run dev
 ```
 
+> **Prerequisites:** [Node.js 18+](https://nodejs.org) and [GitHub CLI](https://cli.github.com) (`gh auth login`)
+>
+> Already using Copilot CLI? You already have both. Just clone and run.
+
+---
+
+## 🧠 AI Backends
+
+### 🟢 GitHub Copilot Models (Default — Free, Zero Config)
+
+If you have `gh` CLI authenticated, GLI auto-detects your token and gives you access to:
+
+| Model | Type | Speed |
+|-------|------|-------|
+| GPT-4o | Standard | ⚡ |
+| GPT-4o Mini | Fast | ⚡⚡ |
+| o4-mini | Reasoning | ⚡ |
+| GPT-4.1 | Standard | ⚡ |
+| GPT-4.1 Mini | Fast | ⚡⚡ |
+| GPT-4.1 Nano | Ultrafast | ⚡⚡⚡ |
+
+**No API key needed.** Uses your existing GitHub authentication.
+
+### 🔶 OpenRouter Models (Optional — 200+ Models)
+
+Want Claude, Gemini, DeepSeek, Llama? Add an [OpenRouter API key](https://openrouter.ai/keys) to `.env`:
+
+```bash
+OPENROUTER_API_KEY=sk-or-...
+```
+
+This unlocks 200+ models including free ones (Llama 3.3 70B, DeepSeek V3, Gemma 3 27B).
+
 ---
 
 ## ⚡ Features
 
-### 🧠 AI Chat with 200+ Models
-- **OpenRouter integration** — Use Claude, GPT, Gemini, Llama, DeepSeek, Mistral, and more
-- **Free models available** — Llama 3.3 70B, Gemma 3 27B, DeepSeek V3, Qwen 2.5 72B
+### 🧠 AI Chat — Works Instantly
+- **GitHub Copilot models** — GPT-4o, GPT-4.1, o4-mini — free with `gh` auth
+- **OpenRouter integration** — 200+ models (Claude, Gemini, DeepSeek, Llama) with API key
+- **Smart routing** — Auto-selects the best available backend
 - **3 modes** — Interactive, Plan, and Autopilot (cycle with `Shift+Tab`)
 - **65+ slash commands** — All GitHub Copilot CLI commands included
 - **@ file mentions** — Reference files directly in chat
@@ -101,9 +131,19 @@ npm run dev
 
 ## ⚙️ Configuration
 
-### `.env` File
+### Zero Config (Copilot Users)
 
-Copy `.env.example` to `.env` and configure:
+If you have `gh` CLI authenticated, **everything works out of the box**. No `.env` file needed.
+
+```bash
+# Check if you're authenticated
+gh auth status
+# If not: gh auth login
+```
+
+### `.env` File (Optional Extras)
+
+Copy `.env.example` to `.env` for Telegram, Obsidian, or OpenRouter:
 
 ```bash
 cp .env.example .env
@@ -111,13 +151,14 @@ cp .env.example .env
 
 | Variable | Required | Description |
 |----------|----------|-------------|
+| `GITHUB_TOKEN` | No | Override auto-detected `gh` token (optional) |
 | `TELEGRAM_BOT_TOKEN` | No | Telegram bot token from @BotFather |
 | `TELEGRAM_GROUP_ID` | No | Telegram group ID for broadcasting |
 | `OBSIDIAN_VAULT_PATH` | No | Absolute path to your Obsidian vault |
 | `OPENROUTER_API_KEY` | No | API key from [openrouter.ai/keys](https://openrouter.ai/keys) |
 | `OPENROUTER_DEFAULT_MODEL` | No | Default OpenRouter model ID |
 
-All features are **optional** — GLI works without any `.env` configuration.
+**AI works without any `.env`** — Copilot models use `gh auth token` automatically.
 
 ---
 
@@ -182,14 +223,15 @@ npx obsidian-mcp /path/to/your/vault
 
 ---
 
-## 🤖 OpenRouter Setup
+## 🤖 OpenRouter Setup (Optional)
+
+Want access to Claude, Gemini, DeepSeek, and 200+ more models beyond the built-in Copilot ones?
 
 1. Get an API key at [openrouter.ai/keys](https://openrouter.ai/keys)
 2. Add to `.env`: `OPENROUTER_API_KEY=sk-or-...`
-3. Launch GLI — OpenRouter models appear in the model picker
-4. Select any OpenRouter model to switch from demo mode to real AI
+3. Launch GLI — OpenRouter models appear in the model picker (marked with 🔶)
 
-### Available Models
+### Additional Models via OpenRouter
 
 | Model | Provider | Tier |
 |-------|----------|------|
@@ -235,7 +277,8 @@ npx obsidian-mcp /path/to/your/vault
 ```
 Copilot-gli/
 ├── main.js              # Electron main process + IPC handlers
-├── preload.js           # Secure IPC bridge (9 namespaces)
+├── preload.js           # Secure IPC bridge (10 namespaces)
+├── copilot-api.js       # GitHub Copilot / Models API (zero config)
 ├── telegram.js          # Telegram bot service (65 commands)
 ├── system-control.js    # Full PC control module
 ├── browser-control.js   # Puppeteer-core browser automation
@@ -247,7 +290,7 @@ Copilot-gli/
 └── renderer/
     ├── index.html       # App shell with 9 panels
     ├── styles.css       # 2800+ lines of epic CSS
-    ├── app.js           # Core application logic (2700+ lines)
+    ├── app.js           # Core application logic
     └── assets/
         └── icon.svg     # App icon
 ```
@@ -261,10 +304,11 @@ Copilot-gli/
 | `gli.terminal` | Command execution |
 | `gli.shell` | Open external links |
 | `gli.telegram` | Bot messaging & agents |
+| `gli.copilot` | GitHub Copilot AI (models, chat) |
 | `gli.system` | PC control (30+ handlers) |
 | `gli.browser` | Browser automation (25+ handlers) |
 | `gli.obsidian` | Vault operations |
-| `gli.openrouter` | AI model access |
+| `gli.openrouter` | OpenRouter AI models |
 
 ---
 
@@ -272,11 +316,11 @@ Copilot-gli/
 
 - **Electron 28** — Cross-platform desktop runtime
 - **Vanilla HTML/CSS/JS** — Zero build step, instant dev loop
-- **OpenRouter API** — 200+ AI models
+- **GitHub Models API** — GPT-4o, GPT-4.1, o4-mini (via `gh` auth)
+- **OpenRouter API** — 200+ additional AI models (optional)
 - **node-telegram-bot-api** — Telegram bot integration
 - **Puppeteer-core** — Browser automation
 - **systeminformation** — Hardware stats
-- **highlight.js** — Syntax highlighting
 - **CSS Custom Properties** — Dynamic theming
 - **Canvas API** — Particle background system
 

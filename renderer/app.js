@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     commandHistory: [],
     historyIndex: -1,
     currentMode: 'interactive',
-    currentModel: 'claude-sonnet-4.5',
+    currentModel: 'gpt-4o-mini',
     mcpServers: JSON.parse(localStorage.getItem('gli-mcp-servers') || '[]'),
     experimental: false,
     slashMenuIndex: 0,
@@ -35,37 +35,29 @@ document.addEventListener('DOMContentLoaded', () => {
   //  Models Registry
   // ═══════════════════════════════════════════════════════════
   const MODELS = [
-    { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6', tier: 'standard', family: 'Anthropic' },
-    { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5', tier: 'standard', family: 'Anthropic' },
-    { id: 'claude-sonnet-4', name: 'Claude Sonnet 4', tier: 'standard', family: 'Anthropic' },
-    { id: 'claude-opus-4.6', name: 'Claude Opus 4.6', tier: 'premium', family: 'Anthropic' },
-    { id: 'claude-opus-4.6-fast', name: 'Claude Opus 4.6 (fast)', tier: 'premium', family: 'Anthropic' },
-    { id: 'claude-opus-4.5', name: 'Claude Opus 4.5', tier: 'premium', family: 'Anthropic' },
-    { id: 'claude-haiku-4.5', name: 'Claude Haiku 4.5', tier: 'fast', family: 'Anthropic' },
-    { id: 'gpt-5.4', name: 'GPT-5.4', tier: 'standard', family: 'OpenAI' },
-    { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex', tier: 'standard', family: 'OpenAI' },
-    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', tier: 'standard', family: 'OpenAI' },
-    { id: 'gpt-5.2', name: 'GPT-5.2', tier: 'standard', family: 'OpenAI' },
-    { id: 'gpt-5.1', name: 'GPT-5.1', tier: 'standard', family: 'OpenAI' },
-    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', tier: 'fast', family: 'OpenAI' },
-    { id: 'gpt-5-mini', name: 'GPT-5 Mini', tier: 'fast', family: 'OpenAI' },
-    { id: 'gpt-4.1', name: 'GPT-4.1', tier: 'fast', family: 'OpenAI' },
-    // OpenRouter Models
-    { id: 'openrouter/anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4 (OR)', tier: 'standard', family: 'OpenRouter' },
-    { id: 'openrouter/anthropic/claude-haiku-4-20250414', name: 'Claude Haiku 4 (OR)', tier: 'fast', family: 'OpenRouter' },
-    { id: 'openrouter/openai/gpt-4o', name: 'GPT-4o (OR)', tier: 'standard', family: 'OpenRouter' },
-    { id: 'openrouter/openai/gpt-4o-mini', name: 'GPT-4o Mini (OR)', tier: 'fast', family: 'OpenRouter' },
-    { id: 'openrouter/google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (OR)', tier: 'standard', family: 'OpenRouter' },
-    { id: 'openrouter/google/gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (OR)', tier: 'fast', family: 'OpenRouter' },
-    { id: 'openrouter/deepseek/deepseek-chat-v3-0324', name: 'DeepSeek V3 (OR)', tier: 'standard', family: 'OpenRouter' },
-    { id: 'openrouter/deepseek/deepseek-r1', name: 'DeepSeek R1 (OR)', tier: 'premium', family: 'OpenRouter' },
-    { id: 'openrouter/meta-llama/llama-4-maverick', name: 'Llama 4 Maverick (OR)', tier: 'standard', family: 'OpenRouter' },
-    { id: 'openrouter/mistralai/codestral-2501', name: 'Codestral (OR)', tier: 'standard', family: 'OpenRouter' },
-    // Free models via OpenRouter
-    { id: 'openrouter/meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', tier: 'free', family: 'OpenRouter Free' },
-    { id: 'openrouter/google/gemma-3-27b-it:free', name: 'Gemma 3 27B (Free)', tier: 'free', family: 'OpenRouter Free' },
-    { id: 'openrouter/deepseek/deepseek-chat-v3-0324:free', name: 'DeepSeek V3 (Free)', tier: 'free', family: 'OpenRouter Free' },
-    { id: 'openrouter/qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B (Free)', tier: 'free', family: 'OpenRouter Free' },
+    // ── GitHub Copilot Models (free, uses gh auth — zero config) ──
+    { id: 'gpt-4o', name: 'GPT-4o', tier: 'standard', family: 'Copilot', backend: 'copilot' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', tier: 'fast', family: 'Copilot', backend: 'copilot' },
+    { id: 'o4-mini', name: 'o4-mini (Reasoning)', tier: 'standard', family: 'Copilot', backend: 'copilot' },
+    { id: 'gpt-4.1', name: 'GPT-4.1', tier: 'standard', family: 'Copilot', backend: 'copilot' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', tier: 'fast', family: 'Copilot', backend: 'copilot' },
+    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', tier: 'free', family: 'Copilot', backend: 'copilot' },
+    // ── OpenRouter Models (needs OPENROUTER_API_KEY) ──
+    { id: 'openrouter/anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/anthropic/claude-opus-4-20250514', name: 'Claude Opus 4', tier: 'premium', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/anthropic/claude-haiku-4-20250414', name: 'Claude Haiku 4', tier: 'fast', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/openai/gpt-4o', name: 'GPT-4o (OR)', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/google/gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash', tier: 'fast', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/deepseek/deepseek-chat-v3-0324', name: 'DeepSeek V3', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/deepseek/deepseek-r1', name: 'DeepSeek R1', tier: 'premium', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/meta-llama/llama-4-maverick', name: 'Llama 4 Maverick', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
+    { id: 'openrouter/mistralai/codestral-2501', name: 'Codestral', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
+    // ── Free OpenRouter Models ──
+    { id: 'openrouter/meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', tier: 'free', family: 'OpenRouter Free', backend: 'openrouter' },
+    { id: 'openrouter/google/gemma-3-27b-it:free', name: 'Gemma 3 27B (Free)', tier: 'free', family: 'OpenRouter Free', backend: 'openrouter' },
+    { id: 'openrouter/deepseek/deepseek-chat-v3-0324:free', name: 'DeepSeek V3 (Free)', tier: 'free', family: 'OpenRouter Free', backend: 'openrouter' },
+    { id: 'openrouter/qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B (Free)', tier: 'free', family: 'OpenRouter Free', backend: 'openrouter' },
   ];
 
   // ═══════════════════════════════════════════════════════════
@@ -217,18 +209,19 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const model of models) {
         const opt = document.createElement('div');
         opt.className = `model-option ${model.id === App.currentModel ? 'active' : ''}`;
-        const badgeClass = model.tier === 'premium' ? 'badge-premium' : model.tier === 'fast' ? 'badge-fast' : 'badge-standard';
+        const badgeClass = model.tier === 'premium' ? 'badge-premium' : model.tier === 'fast' ? 'badge-fast' : model.tier === 'free' ? 'badge-free' : 'badge-standard';
+        const backendTag = model.backend === 'copilot' ? '🟢 gh' : '🔶 OR';
         opt.innerHTML = `
           <div class="model-option-info">
             <span class="model-option-name">${model.name}</span>
-            <span class="model-option-id">${model.id}</span>
+            <span class="model-option-id">${backendTag} · ${model.id}</span>
           </div>
           <span class="model-option-badge ${badgeClass}">${model.tier}</span>`;
         opt.addEventListener('click', () => {
           App.currentModel = model.id;
           updateModelDisplay();
           closeModelDropdown();
-          addChatMessage('assistant', `✓ Model switched to **${model.name}** (\`${model.id}\`)\n\nTier: ${model.tier} | Family: ${model.family}`);
+          addChatMessage('assistant', `✓ Model switched to **${model.name}** (\`${model.id}\`)\n\nBackend: ${model.backend === 'copilot' ? '🟢 GitHub Copilot (free)' : '🔶 OpenRouter'} | Tier: ${model.tier}`);
         });
         list.appendChild(opt);
       }
@@ -1055,21 +1048,26 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
       ...chatHistory.slice(-20),
     ];
 
-    // Priority 1: Copilot API (GitHub Models — uses gh auth, free)
-    try {
-      const copilotInfo = await window.gli.copilot?.getInfo();
-      if (copilotInfo?.enabled) {
-        const model = App.currentModel.startsWith('openrouter/') ? 'gpt-4o-mini' : App.currentModel;
-        const result = await window.gli.copilot.chat(messages, { model });
-        if (result.success) {
-          chatHistory.push({ role: 'assistant', content: result.content });
-          return result.content;
-        }
-      }
-    } catch {}
+    // Determine backend from selected model
+    const modelEntry = MODELS.find(m => m.id === App.currentModel);
+    const backend = modelEntry?.backend || (App.currentModel.startsWith('openrouter/') ? 'openrouter' : 'copilot');
 
-    // Priority 2: OpenRouter (if API key configured)
-    if (App.currentModel.startsWith('openrouter/')) {
+    // Route to Copilot API (GitHub Models — free, uses gh auth)
+    if (backend === 'copilot') {
+      try {
+        const copilotInfo = await window.gli.copilot?.getInfo();
+        if (copilotInfo?.enabled) {
+          const result = await window.gli.copilot.chat(messages, { model: App.currentModel });
+          if (result.success) {
+            chatHistory.push({ role: 'assistant', content: result.content });
+            return result.content;
+          }
+        }
+      } catch {}
+    }
+
+    // Route to OpenRouter (needs API key)
+    if (backend === 'openrouter' || App.currentModel.startsWith('openrouter/')) {
       const orModelId = App.currentModel.replace('openrouter/', '');
       try {
         const result = await window.gli.openrouter.chat(messages, { model: orModelId });
@@ -1084,8 +1082,20 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
       }
     }
 
-    // Fallback: simulated responses (demo mode)
-    chatHistory.pop(); // remove the user message we added
+    // Fallback: try Copilot anyway (user may have gh auth but picked an unknown model)
+    try {
+      const copilotInfo = await window.gli.copilot?.getInfo();
+      if (copilotInfo?.enabled) {
+        const result = await window.gli.copilot.chat(messages, { model: 'gpt-4o-mini' });
+        if (result.success) {
+          chatHistory.push({ role: 'assistant', content: result.content });
+          return result.content;
+        }
+      }
+    } catch {}
+
+    // Demo mode
+    chatHistory.pop();
     return generateDemoResponse(userMessage);
   }
 

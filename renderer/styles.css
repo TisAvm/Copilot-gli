@@ -1319,6 +1319,7 @@ html, body {
 .badge-standard { background: var(--accent-secondary); color: white; }
 .badge-fast { background: var(--success); color: white; }
 .badge-premium { background: var(--accent-primary); color: white; }
+.badge-free { background: #10b981; color: white; }
 
 /* ═══════════════════════════════════════════════════════════
    Slash Command Autocomplete Menu
