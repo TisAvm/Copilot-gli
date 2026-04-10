@@ -87,6 +87,18 @@
           </svg>
           <span class="sidebar-label">Agents</span>
         </button>
+        <button class="sidebar-btn" data-panel="system" title="System (Ctrl+7)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span class="sidebar-label">System</span>
+        </button>
+        <button class="sidebar-btn" data-panel="browser" title="Browser (Ctrl+8)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <span class="sidebar-label">Browser</span>
+        </button>
       </div>
       <div class="sidebar-bottom">
         <button class="sidebar-btn" data-panel="settings" title="Settings (Ctrl+,)">
@@ -416,6 +428,125 @@
             <h3>No Active Agents</h3>
             <p>Create background agents to automate tasks.</p>
             <p class="agents-types">Types: <code>telegram-monitor</code> · <code>auto-responder</code> · <code>file-watcher</code> · <code>telegram-broadcast</code> · <code>scheduled-message</code></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: System Control -->
+      <section class="panel" id="panel-system">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            System Control
+          </h2>
+          <div class="panel-actions">
+            <button class="btn-accent btn-sm" id="btn-sys-refresh">🔄 Refresh</button>
+            <button class="header-action" id="btn-sys-screenshot" title="Screenshot">📸</button>
+          </div>
+        </div>
+        <div class="system-content" id="system-content">
+          <!-- System Stats Grid -->
+          <div class="sys-section">
+            <h3 class="sys-section-title">📊 System Overview</h3>
+            <div class="sys-stats-grid" id="sys-stats-grid">
+              <div class="sys-stat-card loading"><div class="sys-stat-label">Loading...</div></div>
+            </div>
+          </div>
+          <!-- Quick Actions -->
+          <div class="sys-section">
+            <h3 class="sys-section-title">⚡ Quick Actions</h3>
+            <div class="sys-actions-grid">
+              <button class="sys-action-btn" data-action="lock">🔒 Lock</button>
+              <button class="sys-action-btn" data-action="sleep">😴 Sleep</button>
+              <button class="sys-action-btn" data-action="restart">🔄 Restart</button>
+              <button class="sys-action-btn" data-action="shutdown">⏻ Shutdown</button>
+              <button class="sys-action-btn" id="btn-sys-clipboard">📋 Clipboard</button>
+              <button class="sys-action-btn" id="btn-sys-apps">📦 Installed Apps</button>
+              <button class="sys-action-btn" id="btn-sys-wifi">📶 WiFi</button>
+              <button class="sys-action-btn" id="btn-sys-mute">🔇 Mute Toggle</button>
+            </div>
+          </div>
+          <!-- Process Manager -->
+          <div class="sys-section">
+            <h3 class="sys-section-title">🔧 Process Manager</h3>
+            <div class="sys-process-header">
+              <input type="text" id="process-filter" placeholder="Filter processes..." />
+              <button class="btn-accent btn-sm" id="btn-refresh-procs">Refresh</button>
+            </div>
+            <div class="sys-process-list" id="sys-process-list">
+              <div class="sys-process-loading">Loading processes...</div>
+            </div>
+          </div>
+          <!-- Screenshot Viewer -->
+          <div class="sys-section hidden" id="sys-screenshot-section">
+            <h3 class="sys-section-title">📸 Screenshot</h3>
+            <div class="sys-screenshot-container">
+              <img id="sys-screenshot-img" alt="Screenshot" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Browser Control -->
+      <section class="panel" id="panel-browser">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            Browser Control
+          </h2>
+          <div class="panel-actions">
+            <button class="btn-accent btn-sm" id="btn-browser-launch">🚀 Launch</button>
+            <button class="header-action" id="btn-browser-close" title="Close browser">✕</button>
+          </div>
+        </div>
+        <div class="browser-content">
+          <!-- URL Bar -->
+          <div class="browser-url-bar">
+            <button class="browser-nav-btn" id="btn-browser-back" title="Back">◀</button>
+            <button class="browser-nav-btn" id="btn-browser-forward" title="Forward">▶</button>
+            <button class="browser-nav-btn" id="btn-browser-reload" title="Reload">↻</button>
+            <input type="text" id="browser-url-input" placeholder="Enter URL..." />
+            <button class="browser-nav-btn" id="btn-browser-go" title="Navigate">→</button>
+            <button class="browser-nav-btn" id="btn-browser-screenshot" title="Screenshot">📸</button>
+          </div>
+          <!-- Tabs -->
+          <div class="browser-tabs" id="browser-tabs">
+            <span class="browser-no-tabs">No browser running. Click "Launch" to start.</span>
+          </div>
+          <!-- Actions -->
+          <div class="browser-actions-bar">
+            <button class="browser-action-btn" id="btn-browser-newtab">+ New Tab</button>
+            <button class="browser-action-btn" id="btn-browser-content">📄 Get Content</button>
+            <button class="browser-action-btn" id="btn-browser-cookies">🍪 Cookies</button>
+          </div>
+          <!-- Interaction Panel -->
+          <div class="browser-interact">
+            <div class="browser-interact-row">
+              <select id="browser-interact-action">
+                <option value="click">Click Selector</option>
+                <option value="type">Type Text</option>
+                <option value="extract">Extract Data</option>
+                <option value="evaluate">Run JavaScript</option>
+                <option value="scroll">Scroll</option>
+                <option value="waitFor">Wait For</option>
+              </select>
+              <input type="text" id="browser-interact-selector" placeholder="CSS selector or JS code..." />
+              <input type="text" id="browser-interact-value" placeholder="Value (text to type, etc.)" />
+              <button class="btn-accent btn-sm" id="btn-browser-execute">Execute</button>
+            </div>
+          </div>
+          <!-- Output -->
+          <div class="browser-output" id="browser-output">
+            <div class="browser-empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <h3>Browser Automation</h3>
+              <p>Launch a browser to control it: navigate, click, type, screenshot, extract data, and run JavaScript.</p>
+              <p>Uses your installed Edge/Chrome — no downloads needed.</p>
+            </div>
+          </div>
+          <!-- Screenshot Preview -->
+          <div class="browser-screenshot-preview hidden" id="browser-screenshot-preview">
+            <img id="browser-screenshot-img" alt="Page Screenshot" />
           </div>
         </div>
       </section>

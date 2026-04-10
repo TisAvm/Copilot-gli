@@ -1966,8 +1966,387 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
         tgUnread = 0;
         updateTelegramBadge();
       }
+      if (btn.dataset.panel === 'system') {
+        loadSystemInfo();
+      }
     });
   });
+
+  // ═══════════════════════════════════════════════════════════
+  //  System Control Panel
+  // ═══════════════════════════════════════════════════════════
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+  }
+
+  function formatUptime(seconds) {
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return d > 0 ? `${d}d ${h}h ${m}m` : `${h}h ${m}m`;
+  }
+
+  function barColor(pct) {
+    return pct > 80 ? 'red' : pct > 50 ? 'yellow' : 'green';
+  }
+
+  async function loadSystemInfo() {
+    const grid = $('#sys-stats-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '<div class="sys-stat-card loading"><div class="sys-stat-label">Loading system info...</div></div>';
+
+    try {
+      const info = await window.gli.system.detailedInfo();
+
+      const cards = [
+        { icon: '💻', label: 'Computer', value: info.os.hostname, sub: `${info.os.distro} ${info.os.release}` },
+        { icon: '⚙️', label: 'CPU', value: info.cpu.brand, sub: `${info.cpu.cores} cores @ ${info.cpu.speed}GHz` },
+        { icon: '🧠', label: 'Memory', value: `${info.memory.percentUsed}%`, sub: `${formatBytes(info.memory.used)} / ${formatBytes(info.memory.total)}`, bar: info.memory.percentUsed },
+        ...info.disks.slice(0, 3).map(d => ({
+          icon: '💾', label: `Disk ${d.mount}`, value: `${Math.round(d.percentUsed)}%`,
+          sub: `${formatBytes(d.used)} / ${formatBytes(d.size)}`, bar: d.percentUsed,
+        })),
+        ...info.gpu.map(g => ({ icon: '🎮', label: 'GPU', value: g.model, sub: `${g.vram}MB VRAM` })),
+        { icon: '⏱️', label: 'Uptime', value: formatUptime(require ? 0 : 0), sub: '' },
+        { icon: '🔋', label: 'Battery', value: info.battery.hasBattery ? `${info.battery.percent}%` : 'No battery', sub: info.battery.isCharging ? 'Charging' : '' },
+        ...info.network.filter(n => n.ip4).slice(0, 2).map(n => ({
+          icon: '🌐', label: n.iface, value: n.ip4, sub: n.mac,
+        })),
+      ];
+
+      // Get uptime from quick info
+      const quick = await window.gli.system.quickInfo();
+      const uptimeCard = cards.find(c => c.label === 'Uptime');
+      if (uptimeCard) { uptimeCard.value = formatUptime(quick.uptime); uptimeCard.sub = `User: ${quick.user}`; }
+
+      grid.innerHTML = cards.map(c => `
+        <div class="sys-stat-card">
+          <div class="sys-stat-icon">${c.icon}</div>
+          <div class="sys-stat-label">${c.label}</div>
+          <div class="sys-stat-value">${escapeHtml(String(c.value))}</div>
+          ${c.sub ? `<div class="sys-stat-sub">${escapeHtml(String(c.sub))}</div>` : ''}
+          ${c.bar !== undefined ? `<div class="sys-stat-bar"><div class="sys-stat-bar-fill ${barColor(c.bar)}" style="width:${c.bar}%"></div></div>` : ''}
+        </div>`).join('');
+
+    } catch (err) {
+      grid.innerHTML = `<div class="sys-stat-card"><div class="sys-stat-label">Error: ${escapeHtml(err.message)}</div></div>`;
+    }
+  }
+
+  async function loadProcesses(filter = '') {
+    const list = $('#sys-process-list');
+    if (!list) return;
+
+    list.innerHTML = '<div class="sys-process-loading">Loading processes...</div>';
+
+    try {
+      const procs = await window.gli.system.processes();
+      const filtered = filter
+        ? procs.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()))
+        : procs;
+
+      list.innerHTML = `
+        <div class="sys-process-row header">
+          <span>PID</span><span>Name</span><span>CPU %</span><span>MEM %</span><span></span>
+        </div>
+        ${filtered.slice(0, 60).map(p => `
+          <div class="sys-process-row">
+            <span>${p.pid}</span>
+            <span title="${escapeHtml(p.command || p.name)}">${escapeHtml(p.name)}</span>
+            <span>${p.cpu}%</span>
+            <span>${p.mem}%</span>
+            <span><button class="sys-process-kill" data-pid="${p.pid}" title="Kill process">✕</button></span>
+          </div>`).join('')}`;
+
+      list.querySelectorAll('.sys-process-kill').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const pid = parseInt(btn.dataset.pid);
+          const result = await window.gli.system.killProcess(pid);
+          if (result.success) {
+            btn.closest('.sys-process-row')?.remove();
+            addChatMessage('assistant', `🔧 Process ${pid} killed.`);
+          } else {
+            addChatMessage('assistant', `❌ Failed to kill PID ${pid}: ${result.error}`);
+          }
+        });
+      });
+    } catch (err) {
+      list.innerHTML = `<div class="sys-process-loading">Error: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  // System event listeners
+  $('#btn-sys-refresh')?.addEventListener('click', loadSystemInfo);
+  $('#btn-refresh-procs')?.addEventListener('click', () => loadProcesses($('#process-filter')?.value || ''));
+
+  let procFilterDebounce;
+  $('#process-filter')?.addEventListener('input', (e) => {
+    clearTimeout(procFilterDebounce);
+    procFilterDebounce = setTimeout(() => loadProcesses(e.target.value), 300);
+  });
+
+  // Power actions
+  $$('.sys-action-btn[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const result = await window.gli.system.power(btn.dataset.action);
+      if (result.success) {
+        addChatMessage('assistant', `⚡ ${btn.dataset.action} initiated.`);
+      }
+    });
+  });
+
+  // Screenshot
+  $('#btn-sys-screenshot')?.addEventListener('click', async () => {
+    const result = await window.gli.system.screenshot();
+    if (result.success) {
+      const section = $('#sys-screenshot-section');
+      const img = $('#sys-screenshot-img');
+      if (section && img) {
+        img.src = result.data;
+        section.classList.remove('hidden');
+      }
+      addChatMessage('assistant', '📸 Desktop screenshot captured!');
+    }
+  });
+
+  // Clipboard
+  $('#btn-sys-clipboard')?.addEventListener('click', async () => {
+    const clip = await window.gli.system.clipboard();
+    addChatMessage('assistant', `📋 **Clipboard:**\n\n\`\`\`\n${clip.text || '(empty)'}\n\`\`\`\n\nHas image: ${clip.hasImage ? 'Yes' : 'No'}`);
+  });
+
+  // Installed Apps
+  $('#btn-sys-apps')?.addEventListener('click', async () => {
+    addChatMessage('assistant', '📦 Loading installed apps...');
+    const apps = await window.gli.system.installedApps();
+    addChatMessage('assistant', `📦 **Installed Apps (${apps.length}):**\n\n${apps.slice(0, 30).map(a => `• ${a.DisplayName} ${a.DisplayVersion || ''}`).join('\n')}${apps.length > 30 ? `\n\n...and ${apps.length - 30} more` : ''}`);
+  });
+
+  // WiFi
+  $('#btn-sys-wifi')?.addEventListener('click', async () => {
+    const networks = await window.gli.system.wifi();
+    if (networks.length === 0) {
+      addChatMessage('assistant', '📶 No WiFi networks found.');
+    } else {
+      addChatMessage('assistant', `📶 **WiFi Networks (${networks.length}):**\n\n${networks.map(n => `• **${n.ssid}** — ${n.signal}% signal (${n.auth})`).join('\n')}`);
+    }
+  });
+
+  // Mute
+  $('#btn-sys-mute')?.addEventListener('click', async () => {
+    await window.gli.system.mute();
+    addChatMessage('assistant', '🔇 Mute toggled.');
+  });
+
+  // Auto-load processes when system panel opens
+  // (triggers via sidebar click handler above)
+
+  // ═══════════════════════════════════════════════════════════
+  //  Browser Control Panel
+  // ═══════════════════════════════════════════════════════════
+
+  function addBrowserOutput(text, type = 'info') {
+    const output = $('#browser-output');
+    if (!output) return;
+
+    // Remove empty state
+    const empty = output.querySelector('.browser-empty');
+    if (empty) empty.remove();
+
+    const entry = document.createElement('div');
+    entry.className = `browser-output-entry ${type}`;
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    entry.innerHTML = `<div class="browser-output-label">${time}</div><div class="browser-output-data">${escapeHtml(typeof text === 'object' ? JSON.stringify(text, null, 2) : String(text))}</div>`;
+    output.appendChild(entry);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  async function refreshBrowserTabs() {
+    const tabsEl = $('#browser-tabs');
+    if (!tabsEl) return;
+
+    const info = await window.gli.browser.info();
+    if (!info.connected) {
+      tabsEl.innerHTML = '<span class="browser-no-tabs">No browser running. Click "Launch" to start.</span>';
+      return;
+    }
+
+    const tabs = await window.gli.browser.listTabs();
+    tabsEl.innerHTML = tabs.map(t => `
+      <div class="browser-tab ${t.isActive ? 'active' : ''}" data-page-id="${t.id}">
+        <span title="${escapeHtml(t.url)}">${escapeHtml(t.title || t.url || 'New Tab')}</span>
+        <button class="browser-tab-close" data-close-id="${t.id}">✕</button>
+      </div>`).join('');
+
+    tabsEl.querySelectorAll('.browser-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        if (e.target.classList.contains('browser-tab-close')) return;
+        window.gli.browser.switchTab(tab.dataset.pageId);
+        refreshBrowserTabs();
+      });
+    });
+
+    tabsEl.querySelectorAll('.browser-tab-close').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await window.gli.browser.closeTab(btn.dataset.closeId);
+        refreshBrowserTabs();
+      });
+    });
+
+    // Update URL bar
+    const activeTab = tabs.find(t => t.isActive);
+    if (activeTab) {
+      const urlInput = $('#browser-url-input');
+      if (urlInput) urlInput.value = activeTab.url;
+    }
+  }
+
+  // Launch
+  $('#btn-browser-launch')?.addEventListener('click', async () => {
+    addBrowserOutput('Launching browser...');
+    const result = await window.gli.browser.launch();
+    if (result.success) {
+      addBrowserOutput(`✓ Browser launched: ${result.browser}`, 'success');
+      refreshBrowserTabs();
+    } else {
+      addBrowserOutput(`✗ ${result.error}`, 'error');
+    }
+  });
+
+  // Close
+  $('#btn-browser-close')?.addEventListener('click', async () => {
+    await window.gli.browser.close();
+    addBrowserOutput('Browser closed.', 'info');
+    refreshBrowserTabs();
+  });
+
+  // Navigate
+  async function browserNavigate() {
+    const url = $('#browser-url-input')?.value?.trim();
+    if (!url) return;
+    addBrowserOutput(`Navigating to: ${url}`);
+    const result = await window.gli.browser.navigate(url);
+    if (result.success) {
+      addBrowserOutput(`✓ ${result.title} — ${result.url}`, 'success');
+      refreshBrowserTabs();
+    } else {
+      addBrowserOutput(`✗ ${result.error}`, 'error');
+    }
+  }
+
+  $('#btn-browser-go')?.addEventListener('click', browserNavigate);
+  $('#browser-url-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') browserNavigate();
+  });
+
+  // Nav buttons
+  $('#btn-browser-back')?.addEventListener('click', async () => {
+    const r = await window.gli.browser.back();
+    if (r.success) { addBrowserOutput(`◀ Back: ${r.url}`, 'success'); refreshBrowserTabs(); }
+  });
+  $('#btn-browser-forward')?.addEventListener('click', async () => {
+    const r = await window.gli.browser.forward();
+    if (r.success) { addBrowserOutput(`▶ Forward: ${r.url}`, 'success'); refreshBrowserTabs(); }
+  });
+  $('#btn-browser-reload')?.addEventListener('click', async () => {
+    const r = await window.gli.browser.reload();
+    if (r.success) { addBrowserOutput(`↻ Reloaded: ${r.url}`, 'success'); }
+  });
+
+  // New Tab
+  $('#btn-browser-newtab')?.addEventListener('click', async () => {
+    const r = await window.gli.browser.newTab();
+    if (r.success) { addBrowserOutput(`+ New tab: ${r.pageId}`, 'success'); refreshBrowserTabs(); }
+  });
+
+  // Get Content
+  $('#btn-browser-content')?.addEventListener('click', async () => {
+    const r = await window.gli.browser.content();
+    if (r.success) {
+      addBrowserOutput(`📄 Page: ${r.title}\nURL: ${r.url}\nHTML length: ${r.htmlLength}\n\n${r.text.substring(0, 2000)}`, 'success');
+    } else {
+      addBrowserOutput(r.error, 'error');
+    }
+  });
+
+  // Cookies
+  $('#btn-browser-cookies')?.addEventListener('click', async () => {
+    const r = await window.gli.browser.cookies();
+    if (r.success) {
+      addBrowserOutput(`🍪 Cookies (${r.cookies.length}):\n${r.cookies.map(c => `${c.name}=${c.value?.substring(0, 40)}`).join('\n')}`, 'success');
+    }
+  });
+
+  // Screenshot
+  $('#btn-browser-screenshot')?.addEventListener('click', async () => {
+    const r = await window.gli.browser.screenshot();
+    if (r.success) {
+      const preview = $('#browser-screenshot-preview');
+      const img = $('#browser-screenshot-img');
+      if (preview && img) {
+        img.src = r.data;
+        preview.classList.remove('hidden');
+      }
+      addBrowserOutput('📸 Screenshot captured', 'success');
+    } else {
+      addBrowserOutput(r.error, 'error');
+    }
+  });
+
+  // Execute interaction
+  $('#btn-browser-execute')?.addEventListener('click', async () => {
+    const action = $('#browser-interact-action')?.value;
+    const selector = $('#browser-interact-selector')?.value?.trim();
+    const value = $('#browser-interact-value')?.value?.trim();
+
+    if (!selector && action !== 'scroll') return;
+
+    let result;
+    switch (action) {
+      case 'click':
+        result = await window.gli.browser.click(selector);
+        break;
+      case 'type':
+        result = await window.gli.browser.type(selector, value || '', { clear: true });
+        break;
+      case 'extract':
+        result = await window.gli.browser.extract(selector, value || 'textContent');
+        break;
+      case 'evaluate':
+        result = await window.gli.browser.evaluate(selector); // selector field has JS code
+        break;
+      case 'scroll':
+        result = await window.gli.browser.scroll(selector || 'down', parseInt(value) || 500);
+        break;
+      case 'waitFor':
+        result = await window.gli.browser.waitFor(selector, parseInt(value) || 10000);
+        break;
+    }
+
+    if (result?.success) {
+      const display = result.data || result.result || result.selector || JSON.stringify(result);
+      addBrowserOutput(`✓ ${action}: ${typeof display === 'object' ? JSON.stringify(display, null, 2) : display}`, 'success');
+    } else {
+      addBrowserOutput(`✗ ${action}: ${result?.error || 'Unknown error'}`, 'error');
+    }
+  });
+
+  // Browser status listener
+  if (window.gli.browser) {
+    window.gli.browser.onStatus?.((data) => {
+      if (data.status === 'disconnected') {
+        addBrowserOutput('Browser disconnected.', 'info');
+        refreshBrowserTabs();
+      }
+    });
+  }
 
   // ═══════════════════════════════════════════════════════════
   //  Utilities

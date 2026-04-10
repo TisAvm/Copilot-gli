@@ -5,9 +5,13 @@ const path = require('path');
 const fs = require('fs');
 const { exec, spawn } = require('child_process');
 const TelegramService = require('./telegram');
+const SystemControl = require('./system-control');
+const BrowserControl = require('./browser-control');
 
 let mainWindow;
 let telegram;
+let systemCtl;
+let browserCtl;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -41,13 +45,17 @@ function createWindow() {
 app.whenReady().then(async () => {
   createWindow();
 
-  // Initialize Telegram bot
+  // Initialize services
+  systemCtl = new SystemControl(mainWindow);
+  browserCtl = new BrowserControl(mainWindow);
+
   telegram = new TelegramService(mainWindow);
   await telegram.start();
 });
 
 app.on('window-all-closed', () => {
   if (telegram) telegram.destroy();
+  if (browserCtl) browserCtl.destroy();
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -209,3 +217,58 @@ ipcMain.handle('telegram:listAgents', async () => {
   if (!telegram) return [];
   return telegram.listAgents();
 });
+
+// ── System Control IPC Handlers ───────────────────────────
+
+ipcMain.handle('system:quickInfo', () => systemCtl?.getQuickInfo());
+ipcMain.handle('system:detailedInfo', async () => systemCtl?.getDetailedInfo());
+ipcMain.handle('system:processes', async () => systemCtl?.listProcesses());
+ipcMain.handle('system:killProcess', (_, pid) => systemCtl?.killProcess(pid));
+ipcMain.handle('system:launchApp', (_, { appPath, args }) => systemCtl?.launchApp(appPath, args));
+ipcMain.handle('system:openUrl', (_, url) => systemCtl?.openUrl(url));
+ipcMain.handle('system:openPath', (_, p) => systemCtl?.openPath(p));
+ipcMain.handle('system:showInFolder', (_, p) => systemCtl?.showInFolder(p));
+ipcMain.handle('system:installedApps', async () => systemCtl?.getInstalledApps());
+ipcMain.handle('system:clipboard', () => systemCtl?.clipboardRead());
+ipcMain.handle('system:clipboardWrite', (_, text) => systemCtl?.clipboardWrite(text));
+ipcMain.handle('system:clipboardClear', () => systemCtl?.clipboardClear());
+ipcMain.handle('system:screenshot', async () => systemCtl?.takeScreenshot());
+ipcMain.handle('system:windowScreenshot', async () => systemCtl?.takeWindowScreenshot());
+ipcMain.handle('system:power', async (_, action) => systemCtl?.powerAction(action));
+ipcMain.handle('system:cancelShutdown', () => systemCtl?.cancelShutdown());
+ipcMain.handle('system:fileCreate', (_, { path, content }) => systemCtl?.fileCreate(path, content));
+ipcMain.handle('system:fileDelete', (_, p) => systemCtl?.fileDelete(p));
+ipcMain.handle('system:fileRename', (_, { oldPath, newPath }) => systemCtl?.fileRename(oldPath, newPath));
+ipcMain.handle('system:fileCopy', (_, { src, dest }) => systemCtl?.fileCopy(src, dest));
+ipcMain.handle('system:fileInfo', (_, p) => systemCtl?.fileInfo(p));
+ipcMain.handle('system:volume', (_, level) => systemCtl?.setVolume(level));
+ipcMain.handle('system:mute', () => systemCtl?.muteToggle());
+ipcMain.handle('system:displays', () => systemCtl?.getDisplays());
+ipcMain.handle('system:wifi', async () => systemCtl?.getWifiNetworks());
+ipcMain.handle('system:runElevated', async (_, cmd) => systemCtl?.runElevated(cmd));
+
+// ── Browser Control IPC Handlers ──────────────────────────
+
+ipcMain.handle('browser:launch', async (_, opts) => browserCtl?.launch(opts));
+ipcMain.handle('browser:close', async () => browserCtl?.close());
+ipcMain.handle('browser:navigate', async (_, { url, pageId }) => browserCtl?.navigate(url, pageId));
+ipcMain.handle('browser:click', async (_, { selector, pageId }) => browserCtl?.click(selector, pageId));
+ipcMain.handle('browser:type', async (_, { selector, text, options, pageId }) => browserCtl?.type(selector, text, options, pageId));
+ipcMain.handle('browser:pressKey', async (_, { key, pageId }) => browserCtl?.pressKey(key, pageId));
+ipcMain.handle('browser:screenshot', async (_, { options, pageId }) => browserCtl?.screenshot(options, pageId));
+ipcMain.handle('browser:content', async (_, pageId) => browserCtl?.getContent(pageId));
+ipcMain.handle('browser:extract', async (_, { selector, attribute, pageId }) => browserCtl?.extract(selector, attribute, pageId));
+ipcMain.handle('browser:evaluate', async (_, { code, pageId }) => browserCtl?.evaluate(code, pageId));
+ipcMain.handle('browser:waitFor', async (_, { selector, timeout, pageId }) => browserCtl?.waitFor(selector, timeout, pageId));
+ipcMain.handle('browser:scroll', async (_, { direction, amount, pageId }) => browserCtl?.scroll(direction, amount, pageId));
+ipcMain.handle('browser:fillForm', async (_, { fields, pageId }) => browserCtl?.fillForm(fields, pageId));
+ipcMain.handle('browser:select', async (_, { selector, value, pageId }) => browserCtl?.select(selector, value, pageId));
+ipcMain.handle('browser:back', async (_, pageId) => browserCtl?.goBack(pageId));
+ipcMain.handle('browser:forward', async (_, pageId) => browserCtl?.goForward(pageId));
+ipcMain.handle('browser:reload', async (_, pageId) => browserCtl?.reload(pageId));
+ipcMain.handle('browser:newTab', async (_, url) => browserCtl?.newTab(url));
+ipcMain.handle('browser:closeTab', async (_, pageId) => browserCtl?.closeTab(pageId));
+ipcMain.handle('browser:listTabs', async () => browserCtl?.listTabs());
+ipcMain.handle('browser:switchTab', (_, pageId) => browserCtl?.switchTab(pageId));
+ipcMain.handle('browser:cookies', async (_, pageId) => browserCtl?.getCookies(pageId));
+ipcMain.handle('browser:info', () => browserCtl?.getInfo());
