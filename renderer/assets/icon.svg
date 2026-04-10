@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="#0d1117"/>
+  <g transform="translate(128,128)" filter="url(#glow)">
+    <path d="M0,-80 L69.3,40 L-69.3,40 Z" fill="none" stroke="url(#g)" stroke-width="8" stroke-linejoin="round" opacity="0.9"/>
+    <path d="M0,-50 L43.3,25 L-43.3,25 Z" fill="none" stroke="url(#g)" stroke-width="6" stroke-linejoin="round" opacity="0.6"/>
+    <circle cx="0" cy="0" r="8" fill="url(#g)"/>
+  </g>
+  <text x="128" y="200" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="36" font-weight="800" fill="url(#g)">GLI</text>
+</svg>

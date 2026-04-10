@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com;" />
+  <title>Copilot GLI</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+  <!-- ═══ Particle Canvas Background ═══ -->
+  <canvas id="particle-canvas"></canvas>
+
+  <!-- ═══ Title Bar ═══ -->
+  <header class="titlebar" id="titlebar">
+    <div class="titlebar-left">
+      <div class="app-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <defs>
+            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#7c3aed" />
+              <stop offset="100%" style="stop-color:#2563eb" />
+            </linearGradient>
+          </defs>
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#logo-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="titlebar-title">Copilot GLI</span>
+      <span class="titlebar-badge">v1.0.0</span>
+    </div>
+    <div class="titlebar-drag"></div>
+    <div class="window-controls">
+      <button class="win-btn" id="btn-minimize" title="Minimize">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect y="5" width="12" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="win-btn" id="btn-maximize" title="Maximize">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+      </button>
+      <button class="win-btn win-btn-close" id="btn-close" title="Close">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ Main Layout ═══ -->
+  <div class="app-layout">
+
+    <!-- ── Sidebar ── -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <button class="sidebar-btn active" data-panel="chat" title="Chat (Ctrl+1)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="sidebar-label">Chat</span>
+        </button>
+        <button class="sidebar-btn" data-panel="files" title="Explorer (Ctrl+2)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="sidebar-label">Files</span>
+        </button>
+        <button class="sidebar-btn" data-panel="search" title="Search (Ctrl+3)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <span class="sidebar-label">Search</span>
+        </button>
+        <button class="sidebar-btn" data-panel="terminal" title="Terminal (Ctrl+4)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+          <span class="sidebar-label">Terminal</span>
+        </button>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="sidebar-btn" data-panel="settings" title="Settings (Ctrl+,)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span class="sidebar-label">Settings</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ── Content Area ── -->
+    <main class="content" id="content">
+
+      <!-- Panel: Chat -->
+      <section class="panel active" id="panel-chat">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Copilot Chat
+          </h2>
+          <button class="header-action" id="btn-clear-chat" title="Clear chat">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-wrapper">
+          <div class="chat-input-container">
+            <textarea id="chat-input" rows="1" placeholder="Ask Copilot GLI anything..." spellcheck="false"></textarea>
+            <button class="chat-send-btn" id="chat-send" title="Send (Enter)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+          <p class="chat-disclaimer">Copilot GLI may produce inaccurate responses. Verify important information.</p>
+        </div>
+      </section>
+
+      <!-- Panel: File Explorer -->
+      <section class="panel" id="panel-files">
+        <div class="files-layout">
+          <!-- File Tree Side -->
+          <div class="file-tree-pane">
+            <div class="panel-header">
+              <h2 class="panel-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Explorer
+              </h2>
+              <button class="header-action" id="btn-open-folder" title="Open Folder">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+              </button>
+            </div>
+            <div class="file-tree" id="file-tree">
+              <div class="file-tree-empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.4">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <p>No folder open</p>
+                <button class="btn-accent" id="btn-open-folder-2">Open Folder</button>
+              </div>
+            </div>
+          </div>
+          <!-- Code Viewer Side -->
+          <div class="code-viewer-pane" id="code-viewer-pane">
+            <div class="panel-header" id="code-tabs-header">
+              <div class="code-tabs" id="code-tabs"></div>
+            </div>
+            <div class="code-viewer" id="code-viewer">
+              <div class="code-viewer-empty">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.3">
+                  <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                </svg>
+                <p>Select a file to view</p>
+                <div class="shortcut-hints">
+                  <span class="kbd">Ctrl+1</span> Chat
+                  <span class="kbd">Ctrl+2</span> Files
+                  <span class="kbd">Ctrl+3</span> Search
+                  <span class="kbd">Ctrl+4</span> Terminal
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Search -->
+      <section class="panel" id="panel-search">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Search
+          </h2>
+        </div>
+        <div class="search-box">
+          <input type="text" id="search-input" placeholder="Search files and content..." spellcheck="false" />
+          <div class="search-options">
+            <label class="search-toggle"><input type="checkbox" id="search-regex" /> <span>.*</span></label>
+            <label class="search-toggle"><input type="checkbox" id="search-case" /> <span>Aa</span></label>
+          </div>
+        </div>
+        <div class="search-results" id="search-results">
+          <div class="search-empty">
+            <p>Type to search across your files</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Terminal -->
+      <section class="panel" id="panel-terminal">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            Terminal
+          </h2>
+          <button class="header-action" id="btn-clear-terminal" title="Clear terminal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+        <div class="terminal-output" id="terminal-output">
+          <div class="terminal-welcome">
+            <span class="terminal-accent">╔══════════════════════════════════════╗</span>
+            <span class="terminal-accent">║    Copilot GLI Terminal v1.0.0       ║</span>
+            <span class="terminal-accent">╚══════════════════════════════════════╝</span>
+            <span class="terminal-muted">Type a command and press Enter to execute.</span>
+          </div>
+        </div>
+        <div class="terminal-input-wrapper">
+          <span class="terminal-prompt">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2.5"><polyline points="4 17 10 11 4 5"/></svg>
+          </span>
+          <input type="text" class="terminal-input" id="terminal-input" placeholder="Enter command..." spellcheck="false" autocomplete="off" />
+        </div>
+      </section>
+
+      <!-- Panel: Settings -->
+      <section class="panel" id="panel-settings">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Settings
+          </h2>
+        </div>
+        <div class="settings-content">
+          <div class="settings-group">
+            <h3 class="settings-group-title">Appearance</h3>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label>Theme</label>
+                <p class="setting-description">Choose the visual theme for the application</p>
+              </div>
+              <div class="theme-selector" id="theme-selector">
+                <button class="theme-option active" data-theme="dark">
+                  <span class="theme-preview dark-preview"></span>
+                  <span>Dark</span>
+                </button>
+                <button class="theme-option" data-theme="cyberpunk">
+                  <span class="theme-preview cyberpunk-preview"></span>
+                  <span>Cyberpunk</span>
+                </button>
+                <button class="theme-option" data-theme="light">
+                  <span class="theme-preview light-preview"></span>
+                  <span>Light</span>
+                </button>
+              </div>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label>Particles Background</label>
+                <p class="setting-description">Animated particle effect in background</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-particles" checked />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label>Sidebar Labels</label>
+                <p class="setting-description">Show text labels below sidebar icons</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-sidebar-labels" checked />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-group">
+            <h3 class="settings-group-title">About</h3>
+            <div class="about-card">
+              <div class="about-logo">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#logo-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="about-info">
+                <h4>GitHub Copilot GLI</h4>
+                <p>Version 1.0.0</p>
+                <p class="about-tagline">Where CLI is text, GLI is visual.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═══ Status Bar ═══ -->
+  <footer class="statusbar" id="statusbar">
+    <div class="statusbar-left">
+      <span class="status-item">
+        <span class="status-dot pulse"></span>
+        <span id="status-text">Ready</span>
+      </span>
+    </div>
+    <div class="statusbar-right">
+      <span class="status-item" id="status-file">No file open</span>
+      <span class="status-separator">│</span>
+      <span class="status-item">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Copilot GLI
+      </span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
