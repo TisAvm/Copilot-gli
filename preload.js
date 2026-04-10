@@ -34,4 +34,27 @@ contextBridge.exposeInMainWorld('gli', {
   shell: {
     openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   },
+
+  // Telegram
+  telegram: {
+    getInfo: () => ipcRenderer.invoke('telegram:getInfo'),
+    sendReply: (chatId, text, replyToMessageId) =>
+      ipcRenderer.invoke('telegram:sendReply', { chatId, text, replyToMessageId }),
+    sendToGroup: (text) => ipcRenderer.invoke('telegram:sendToGroup', text),
+    reconnect: () => ipcRenderer.invoke('telegram:reconnect'),
+    onMessage: (callback) => {
+      ipcRenderer.on('telegram:message', (_, data) => callback(data));
+    },
+    onStatus: (callback) => {
+      ipcRenderer.on('telegram:status', (_, data) => callback(data));
+    },
+    // Background Agents
+    createAgent: (name, task, options) =>
+      ipcRenderer.invoke('telegram:createAgent', { name, task, options }),
+    stopAgent: (agentId) => ipcRenderer.invoke('telegram:stopAgent', agentId),
+    listAgents: () => ipcRenderer.invoke('telegram:listAgents'),
+    onAgentUpdate: (callback) => {
+      ipcRenderer.on('telegram:agentUpdate', (_, data) => callback(data));
+    },
+  },
 });

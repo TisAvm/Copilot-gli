@@ -1677,6 +1677,8 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
         case 'd': e.preventDefault(); executeSlashCommand('clearContext'); break;
         case 'g': e.preventDefault(); executeSlashCommand('generateCommit'); break;
         case 't': e.preventDefault(); executeSlashCommand('runTests'); break;
+        case '5': e.preventDefault(); switchPanel('telegram'); break;
+        case '6': e.preventDefault(); switchPanel('agents'); break;
         case 's': e.preventDefault(); if (App.currentPanel === 'search') { searchInput?.focus(); } break;
       }
       return;
@@ -1686,6 +1688,285 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
     if (App.currentPanel === 'terminal' && e.key !== 'Control' && e.key !== 'Meta' && !e.ctrlKey && !e.metaKey) {
       terminalInput?.focus();
     }
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  //  Telegram Integration
+  // ═══════════════════════════════════════════════════════════
+  const tgMessages = $('#tg-messages');
+  const tgBadge = $('#tg-badge');
+  let tgMessageCount = 0;
+  let tgUnread = 0;
+
+  function addTelegramMessage(data, direction = 'incoming') {
+    // Remove empty state
+    const emptyState = tgMessages?.querySelector('.telegram-empty');
+    if (emptyState) emptyState.remove();
+
+    const msg = document.createElement('div');
+    msg.className = 'telegram-msg';
+
+    const timeStr = new Date(data.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const initial = (data.from?.name || 'Bot')[0].toUpperCase();
+
+    msg.innerHTML = `
+      <div class="telegram-msg-avatar ${direction}">${direction === 'incoming' ? '✈' : '◈'}</div>
+      <div class="telegram-msg-content">
+        <div class="telegram-msg-header">
+          <span class="telegram-msg-name">${escapeHtml(data.from?.name || 'You')}</span>
+          <span class="telegram-msg-time">${timeStr}</span>
+        </div>
+        <div class="telegram-msg-text">${escapeHtml(data.text)}</div>
+        ${data.forwarded ? '<div class="telegram-msg-forwarded">↗ Forwarded to Chat</div>' : ''}
+      </div>`;
+
+    tgMessages?.appendChild(msg);
+    if (tgMessages) tgMessages.scrollTop = tgMessages.scrollHeight;
+    tgMessageCount++;
+  }
+
+  function updateTelegramBadge() {
+    if (tgBadge) {
+      if (tgUnread > 0) {
+        tgBadge.textContent = tgUnread > 99 ? '99+' : tgUnread;
+        tgBadge.classList.remove('hidden');
+      } else {
+        tgBadge.classList.add('hidden');
+      }
+    }
+  }
+
+  function updateTelegramStatus(status, message) {
+    const dot = $('#tg-status-dot');
+    const dotBar = $('#tg-status-dot-bar');
+    const text = $('#tg-status-text');
+    const barText = $('#status-tg-text');
+
+    const className = status === 'connected' ? 'connected' : status === 'error' ? 'disconnected' : 'connecting';
+
+    if (dot) { dot.className = `telegram-status-dot ${className}`; }
+    if (dotBar) { dotBar.className = `tg-dot ${className}`; }
+    if (text) { text.textContent = message; }
+    if (barText) {
+      barText.textContent = status === 'connected'
+        ? `TG: ${message.replace('Connected as ', '')}`
+        : `TG: ${status === 'error' ? 'Error' : 'Connecting...'}`;
+    }
+  }
+
+  // Listen for incoming Telegram messages
+  if (window.gli.telegram) {
+    window.gli.telegram.onMessage((data) => {
+      // Add to Telegram panel
+      addTelegramMessage({ ...data, forwarded: true }, 'incoming');
+
+      // Update badge if not on Telegram panel
+      if (App.currentPanel !== 'telegram') {
+        tgUnread++;
+        updateTelegramBadge();
+      }
+
+      // Forward to chat as a prompt
+      const prefix = data.isGroup
+        ? `📨 *Telegram (${data.groupTitle || 'Group'})*\n**${data.from.name}:** `
+        : `📨 *Telegram DM*\n**${data.from.name}:** `;
+
+      addChatMessage('user', prefix + data.text);
+
+      // Generate AI response and send back to Telegram
+      (async () => {
+        showTypingIndicator();
+        updateStatus('Thinking (Telegram)...');
+
+        const response = await generateResponse(data.text);
+
+        removeTypingIndicator();
+        addChatMessage('assistant', response);
+        updateStatus('Ready');
+
+        // Send response back to Telegram
+        const result = await window.gli.telegram.sendReply(data.chatId, response, data.id);
+        if (result.success) {
+          addTelegramMessage({
+            from: { name: 'Copilot GLI' },
+            text: response,
+            timestamp: Date.now(),
+          }, 'outgoing');
+        }
+      })();
+    });
+
+    window.gli.telegram.onStatus((data) => {
+      updateTelegramStatus(data.status, data.message);
+    });
+
+    // Initial status check
+    (async () => {
+      const info = await window.gli.telegram.getInfo();
+      if (info.connected) {
+        updateTelegramStatus('connected', `Connected as @${info.botUsername}`);
+        const botName = $('#tg-bot-name');
+        const groupId = $('#tg-group-id');
+        if (botName) botName.textContent = `@${info.botUsername}`;
+        if (groupId) groupId.textContent = info.groupId || 'Not set';
+      }
+    })();
+  }
+
+  // Reconnect button
+  $('#btn-tg-reconnect')?.addEventListener('click', async () => {
+    updateTelegramStatus('connecting', 'Reconnecting...');
+    const result = await window.gli.telegram.reconnect();
+    if (!result) {
+      updateTelegramStatus('error', 'Reconnection failed');
+    }
+  });
+
+  // Send to group button
+  $('#btn-tg-send-group')?.addEventListener('click', () => {
+    const text = prompt('Send a message to the Telegram group:');
+    if (text?.trim()) {
+      window.gli.telegram.sendToGroup(text.trim());
+      addTelegramMessage({ from: { name: 'You' }, text: text.trim(), timestamp: Date.now() }, 'outgoing');
+    }
+  });
+
+  // Compose input
+  const tgComposeInput = $('#tg-compose-input');
+  const tgComposeSend = $('#tg-compose-send');
+
+  async function sendTelegramCompose() {
+    const text = tgComposeInput?.value?.trim();
+    if (!text) return;
+    tgComposeInput.value = '';
+
+    addTelegramMessage({ from: { name: 'You' }, text, timestamp: Date.now() }, 'outgoing');
+    const result = await window.gli.telegram.sendToGroup(text);
+    if (!result.success) {
+      addTelegramMessage({ from: { name: 'System' }, text: `❌ Failed: ${result.error}`, timestamp: Date.now() }, 'incoming');
+    }
+  }
+
+  tgComposeSend?.addEventListener('click', sendTelegramCompose);
+  tgComposeInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendTelegramCompose(); }
+  });
+
+  // Clear unread when switching to Telegram panel
+  const originalSwitchPanel = switchPanel;
+  // Wrap switchPanel isn't needed since we can observe
+  // (We'll use a MutationObserver or just patch the panel switch click handlers)
+
+  // ═══════════════════════════════════════════════════════════
+  //  Background Agents System (UI)
+  // ═══════════════════════════════════════════════════════════
+  const agentsList = $('#agents-list');
+  const agentCards = new Map();
+
+  function renderAgentCard(agent) {
+    const emptyState = agentsList?.querySelector('.agents-empty');
+    if (emptyState) emptyState.remove();
+
+    let card = agentCards.get(agent.id);
+    const isNew = !card;
+
+    if (isNew) {
+      card = document.createElement('div');
+      card.className = 'agent-card';
+      card.dataset.agentId = agent.id;
+      agentCards.set(agent.id, card);
+    }
+
+    const logsHtml = (agent.logs || [])
+      .map(l => {
+        const t = new Date(l.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return `<div class="agent-log-entry"><span class="agent-log-time">${t}</span>${escapeHtml(l.msg)}</div>`;
+      })
+      .join('');
+
+    card.innerHTML = `
+      <div class="agent-card-header">
+        <div class="agent-card-name">
+          🤖 ${escapeHtml(agent.name)}
+          <span class="agent-status-badge ${agent.status}">${agent.status}</span>
+        </div>
+      </div>
+      <div class="agent-card-task">${escapeHtml(agent.task)}</div>
+      <div class="agent-card-type">${escapeHtml(agent.options?.type || 'generic')}</div>
+      <div class="agent-card-logs">${logsHtml || '<em>No logs yet</em>'}</div>
+      <div class="agent-card-actions">
+        ${agent.status === 'running' ? `<button class="btn-stop" data-agent="${agent.id}">⬛ Stop</button>` : ''}
+      </div>`;
+
+    // Attach stop handler
+    const stopBtn = card.querySelector('.btn-stop');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', async () => {
+        await window.gli.telegram.stopAgent(agent.id);
+      });
+    }
+
+    if (isNew) {
+      agentsList?.appendChild(card);
+    }
+
+    // Auto-scroll logs
+    const logsEl = card.querySelector('.agent-card-logs');
+    if (logsEl) logsEl.scrollTop = logsEl.scrollHeight;
+  }
+
+  // Listen for agent updates
+  if (window.gli.telegram) {
+    window.gli.telegram.onAgentUpdate((agent) => {
+      renderAgentCard(agent);
+    });
+  }
+
+  // New Agent modal
+  $('#btn-new-agent')?.addEventListener('click', () => {
+    $('#agent-modal-overlay').classList.remove('hidden');
+    $('#agent-name').value = '';
+    $('#agent-task').value = '';
+    $('#agent-type').value = 'telegram-monitor';
+    $('#agent-options').value = '';
+    $('#agent-name').focus();
+  });
+
+  $('#agent-modal-close')?.addEventListener('click', () => $('#agent-modal-overlay').classList.add('hidden'));
+  $('#agent-cancel')?.addEventListener('click', () => $('#agent-modal-overlay').classList.add('hidden'));
+
+  $('#agent-create')?.addEventListener('click', async () => {
+    const name = $('#agent-name').value.trim();
+    const task = $('#agent-task').value.trim();
+    const type = $('#agent-type').value;
+    let options = {};
+
+    try {
+      const optStr = $('#agent-options').value.trim();
+      options = optStr ? JSON.parse(optStr) : {};
+    } catch {
+      options = {};
+    }
+
+    if (!name || !task) return;
+
+    options.type = type;
+
+    const result = await window.gli.telegram.createAgent(name, task, options);
+    $('#agent-modal-overlay').classList.add('hidden');
+
+    addChatMessage('assistant', `🤖 Agent **${name}** created!\n\n• **Type:** \`${type}\`\n• **Task:** ${task}\n• **ID:** \`${result.id}\``);
+  });
+
+  // Clear unread when viewing Telegram
+  $$('.sidebar-btn').forEach(btn => {
+    const origHandler = btn.onclick;
+    btn.addEventListener('click', () => {
+      if (btn.dataset.panel === 'telegram') {
+        tgUnread = 0;
+        updateTelegramBadge();
+      }
+    });
   });
 
   // ═══════════════════════════════════════════════════════════

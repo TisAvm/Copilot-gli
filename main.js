@@ -1,9 +1,13 @@
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { exec, spawn } = require('child_process');
+const TelegramService = require('./telegram');
 
 let mainWindow;
+let telegram;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -34,9 +38,16 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  createWindow();
+
+  // Initialize Telegram bot
+  telegram = new TelegramService(mainWindow);
+  await telegram.start();
+});
 
 app.on('window-all-closed', () => {
+  if (telegram) telegram.destroy();
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -157,3 +168,44 @@ ipcMain.handle('terminal:kill', async (_, id) => {
 
 // Open external links
 ipcMain.handle('shell:openExternal', (_, url) => shell.openExternal(url));
+
+// ── Telegram IPC Handlers ─────────────────────────────────
+
+ipcMain.handle('telegram:getInfo', () => {
+  return telegram ? telegram.getInfo() : { connected: false };
+});
+
+ipcMain.handle('telegram:sendReply', async (_, { chatId, text, replyToMessageId }) => {
+  if (!telegram) return { success: false, error: 'Telegram not initialized' };
+  return telegram.sendReply(chatId, text, replyToMessageId);
+});
+
+ipcMain.handle('telegram:sendToGroup', async (_, text) => {
+  if (!telegram) return { success: false, error: 'Telegram not initialized' };
+  return telegram.sendToGroup(text);
+});
+
+ipcMain.handle('telegram:reconnect', async () => {
+  if (telegram) {
+    telegram.destroy();
+    telegram = new TelegramService(mainWindow);
+    return telegram.start();
+  }
+  return false;
+});
+
+// Background Agents
+ipcMain.handle('telegram:createAgent', async (_, { name, task, options }) => {
+  if (!telegram) return { success: false, error: 'Telegram not initialized' };
+  return telegram.createAgent(name, task, options);
+});
+
+ipcMain.handle('telegram:stopAgent', async (_, agentId) => {
+  if (!telegram) return { success: false, error: 'Telegram not initialized' };
+  return telegram.stopAgent(agentId);
+});
+
+ipcMain.handle('telegram:listAgents', async () => {
+  if (!telegram) return [];
+  return telegram.listAgents();
+});
