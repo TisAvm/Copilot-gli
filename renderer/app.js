@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     slashMenuIndex: 0,
     mentionMenuIndex: 0,
     paletteIndex: 0,
+    telegramSync: localStorage.getItem('gli-telegram-sync') !== 'false',
   };
 
   // ── DOM References ────────────────────────────────────────
@@ -1032,6 +1033,14 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
     window.gli.obsidian?.recordMessage('assistant', response, {
       model: App.currentModel, mode: App.currentMode, source: 'chat'
     });
+
+    // Forward GUI conversation to Telegram group so user can continue there
+    if (window.gli.telegram && App.telegramSync) {
+      try {
+        await window.gli.telegram.sendToGroup(`💬 *You:* ${text}`);
+        await window.gli.telegram.sendToGroup(`🤖 *GLI:*\n\n${response}`);
+      } catch {}
+    }
   }
 
   // Chat history for OpenRouter context
@@ -2146,7 +2155,12 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
 
   // Listen for incoming Telegram messages
   if (window.gli.telegram) {
+    // Track the last Telegram chatId so GUI responses can be forwarded
+    let lastTelegramChatId = null;
+
     window.gli.telegram.onMessage((data) => {
+      lastTelegramChatId = data.chatId;
+
       // Add to Telegram panel
       addTelegramMessage({ ...data, forwarded: true }, 'incoming');
 
@@ -2156,34 +2170,39 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
         updateTelegramBadge();
       }
 
-      // Forward to chat as a prompt
+      // Display in main chat panel — the backend handles AI processing
       const prefix = data.isGroup
         ? `📨 *Telegram (${data.groupTitle || 'Group'})*\n**${data.from.name}:** `
         : `📨 *Telegram DM*\n**${data.from.name}:** `;
 
       addChatMessage('user', prefix + data.text);
+      showTypingIndicator();
+      updateStatus('Thinking (Telegram)...');
+    });
 
-      // Generate AI response and send back to Telegram
-      (async () => {
-        showTypingIndicator();
-        updateStatus('Thinking (Telegram)...');
+    // Listen for AI responses from the backend (Telegram → OpenRouter → here)
+    window.gli.telegram.onAIResponse((data) => {
+      removeTypingIndicator();
+      updateStatus('Ready');
 
-        const response = await generateResponse(data.text);
+      // Display AI response in main chat
+      const modelTag = data.model ? ` · \`${data.model}\`` : '';
+      addChatMessage('assistant', data.aiResponse);
 
-        removeTypingIndicator();
-        addChatMessage('assistant', response);
-        updateStatus('Ready');
+      // Also display in Telegram panel as outgoing
+      addTelegramMessage({
+        from: { name: 'Copilot GLI' },
+        text: data.aiResponse,
+        timestamp: Date.now(),
+      }, 'outgoing');
 
-        // Send response back to Telegram
-        const result = await window.gli.telegram.sendReply(data.chatId, response, data.id);
-        if (result.success) {
-          addTelegramMessage({
-            from: { name: 'Copilot GLI' },
-            text: response,
-            timestamp: Date.now(),
-          }, 'outgoing');
-        }
-      })();
+      // Record to Obsidian
+      window.gli.obsidian?.recordMessage('user', data.userMessage, {
+        model: data.model, source: 'telegram'
+      });
+      window.gli.obsidian?.recordMessage('assistant', data.aiResponse, {
+        model: data.model, source: 'telegram'
+      });
     });
 
     window.gli.telegram.onStatus((data) => {

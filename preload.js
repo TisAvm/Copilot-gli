@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('gli', {
     onMessage: (callback) => {
       ipcRenderer.on('telegram:message', (_, data) => callback(data));
     },
+    onAIResponse: (callback) => {
+      ipcRenderer.on('telegram:ai-response', (_, data) => callback(data));
+    },
     onStatus: (callback) => {
       ipcRenderer.on('telegram:status', (_, data) => callback(data));
     },
