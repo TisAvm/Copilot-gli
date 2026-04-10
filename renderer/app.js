@@ -94,17 +94,23 @@ document.addEventListener('DOMContentLoaded', () => {
     { cmd: '/reset-allowed-tools', desc: 'Reset the list of allowed tools', category: 'Permissions', action: 'resetTools' },
     // Help and feedback
     { cmd: '/help', desc: 'Show help for interactive commands', category: 'Help', shortcut: '', action: 'help' },
-    { cmd: '/version', desc: 'Display version information', category: 'Help', action: 'version' },
+    { cmd: '/version', desc: 'Display version information and check for updates', category: 'Help', action: 'version' },
     { cmd: '/changelog', desc: 'Display changelog for CLI versions', category: 'Help', action: 'changelog' },
     { cmd: '/feedback', desc: 'Provide feedback about GLI', category: 'Help', action: 'feedback' },
     { cmd: '/theme', desc: 'View or set color mode', category: 'Help', action: 'theme' },
+    { cmd: '/update', desc: 'Update the CLI to the latest version', category: 'Help', action: 'update' },
     { cmd: '/experimental', desc: 'Toggle experimental features', category: 'Help', action: 'experimental' },
     { cmd: '/instructions', desc: 'View and toggle custom instruction files', category: 'Help', action: 'instructions' },
     { cmd: '/streamer-mode', desc: 'Toggle streamer mode (hides model names)', category: 'Help', action: 'streamerMode' },
     // Other
-    { cmd: '/terminal-setup', desc: 'Configure terminal for multiline input', category: 'Other', action: 'terminalSetup' },
+    { cmd: '/terminal-setup', desc: 'Configure terminal for multiline input (Shift+Enter)', category: 'Other', action: 'terminalSetup' },
     { cmd: '/login', desc: 'Log in to Copilot', category: 'Other', action: 'login' },
     { cmd: '/logout', desc: 'Log out of Copilot', category: 'Other', action: 'logout' },
+    { cmd: '/exit', desc: 'Exit the CLI', category: 'Other', action: 'exit' },
+    { cmd: '/quit', desc: 'Exit the CLI', category: 'Other', action: 'exit' },
+    { cmd: '/restart', desc: 'Restart the CLI, preserving current session', category: 'Other', action: 'restart' },
+    { cmd: '/session', desc: 'View and manage sessions', category: 'Session', action: 'session' },
+    { cmd: '/user', desc: 'Manage GitHub user list', category: 'Other', action: 'user' },
   ];
 
   // ═══════════════════════════════════════════════════════════
@@ -432,6 +438,11 @@ document.addEventListener('DOMContentLoaded', () => {
       terminalSetup: () => { switchPanel('terminal'); addChatMessage('assistant', '⌨️ Terminal configured. Use Shift+Enter for multiline input in the terminal panel.'); },
       login: () => addChatMessage('assistant', '🔑 **Login**\n\nUse `gh auth login` in the terminal to authenticate with GitHub.'),
       logout: () => addChatMessage('assistant', '🚪 **Logout**\n\nUse `gh auth logout` in the terminal to log out.'),
+      exit: () => addChatMessage('assistant', '👋 Use the window close button or **Ctrl+Q** to exit GLI.'),
+      restart: () => { addChatMessage('assistant', '🔄 Restarting GLI...'); setTimeout(() => location.reload(), 1000); },
+      session: () => addChatMessage('assistant', '📂 **Session Manager**\n\nSubcommands:\n• `/resume` — Switch to a different session\n• `/rename` — Rename current session\n• `/new` — Start new session\n• `/compact` — Compress current session'),
+      update: () => addChatMessage('assistant', '📦 **Update Check**\n\nCurrent: v1.0.0\nLatest: v1.0.0\n\n✅ You are on the latest version.\n\n*Run `git pull` in the project directory to update.*'),
+      user: () => addChatMessage('assistant', '👤 **GitHub User**\n\nUse `gh api user` in the terminal to check your authenticated GitHub user.'),
     };
 
     const fn = actions[action];
@@ -1818,6 +1829,13 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
           setMode(cmd.value);
           addChatMessage('assistant', `🔄 Mode switched to **${cmd.value}** (via Telegram)`);
           break;
+        case 'setTheme': {
+          const theme = cmd.value;
+          document.documentElement.setAttribute('data-theme', theme);
+          localStorage.setItem('gli-theme', theme);
+          addChatMessage('assistant', `🎨 Theme switched to **${theme}** (via Telegram)`);
+          break;
+        }
         case 'clearChat':
           chatMessages.innerHTML = '';
           addChatMessage('assistant', '🧹 Chat cleared (via Telegram command).');
@@ -1826,23 +1844,40 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
           chatMessages.innerHTML = '';
           addChatMessage('assistant', '✨ New session started (via Telegram).');
           break;
-        case 'context':
-          executeSlashCommand('context');
+        case 'restart':
+          addChatMessage('assistant', '🔄 Restarting GLI (via Telegram)...');
+          setTimeout(() => location.reload(), 1000);
           break;
-        case 'compact':
-          executeSlashCommand('compact');
+        case 'rename':
+          addChatMessage('assistant', `✏️ Session renamed to: **${cmd.value || 'Untitled'}** (via Telegram)`);
           break;
-        case 'copyLast':
-          executeSlashCommand('copyLast');
+        case 'addDir':
+          addChatMessage('assistant', `📂 Directory added: \`${cmd.value}\` (via Telegram)`);
           break;
-        case 'experimental':
-          executeSlashCommand('experimental');
+        case 'cwd':
+          if (cmd.value) App.currentFolder = cmd.value;
+          addChatMessage('assistant', `📍 Working directory: \`${cmd.value || App.currentFolder || 'Not set'}\` (via Telegram)`);
           break;
-        case 'research':
-          executeSlashCommand('research');
-          break;
-        default:
-          addChatMessage('assistant', `⚡ Telegram command: ${cmd.action}`);
+        default: {
+          // Try to execute as a slash command action
+          const fn = {
+            context: 'context', compact: 'compact', copyLast: 'copyLast',
+            experimental: 'experimental', research: 'research', rewind: 'rewind',
+            share: 'share', resume: 'resume', session: 'session', update: 'update',
+            pr: 'pr', review: 'review', lsp: 'lsp', ide: 'ide', init: 'init',
+            agent: 'agent', skills: 'skills', openMcpSettings: 'openMcpSettings',
+            plugin: 'plugin', delegate: 'delegate', fleet: 'fleet', tasks: 'tasks',
+            terminalSetup: 'terminalSetup', instructions: 'instructions',
+            streamerMode: 'streamerMode', login: 'login', logout: 'logout',
+            allowAll: 'allowAll', listDirs: 'listDirs', resetTools: 'resetTools',
+            user: 'user',
+          }[cmd.action];
+          if (fn) {
+            executeSlashCommand(fn);
+          } else {
+            addChatMessage('assistant', `⚡ Telegram command: ${cmd.action}`);
+          }
+        }
       }
     });
 

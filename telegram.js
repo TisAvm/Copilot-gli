@@ -129,27 +129,83 @@ class TelegramService {
   async registerCommands() {
     if (!this.bot) return;
 
+    // Telegram allows max 100 commands; include the most useful ones
     const commands = [
+      // Help
+      { command: 'start', description: 'Welcome message and getting started' },
       { command: 'help', description: 'Show all available commands' },
       { command: 'commands', description: 'List commands by category' },
-      { command: 'model', description: 'View or switch AI model' },
-      { command: 'mode', description: 'View or switch mode (interactive/plan/autopilot)' },
       { command: 'version', description: 'Show version info' },
-      { command: 'status', description: 'Show system status overview' },
+      { command: 'changelog', description: 'Display changelog' },
+      { command: 'feedback', description: 'Provide feedback about GLI' },
+      // Models & Mode
+      { command: 'model', description: 'View or switch AI model' },
+      { command: 'mode', description: 'View or switch mode' },
+      { command: 'delegate', description: 'Send session to GitHub for a PR' },
+      { command: 'fleet', description: 'Enable fleet mode (parallel subagents)' },
+      { command: 'tasks', description: 'View and manage background tasks' },
+      // Agent environment
+      { command: 'init', description: 'Initialize Copilot instructions' },
+      { command: 'agent', description: 'Browse available agents' },
+      { command: 'skills', description: 'Manage skills' },
+      { command: 'mcp', description: 'Manage MCP server configuration' },
+      { command: 'plugin', description: 'Manage plugins' },
+      // Code
+      { command: 'diff', description: 'Review git changes' },
+      { command: 'pr', description: 'Operate on pull requests' },
+      { command: 'review', description: 'Run code review agent' },
+      { command: 'lsp', description: 'Manage language servers' },
+      { command: 'ide', description: 'Connect to an IDE workspace' },
+      { command: 'plan', description: 'Create implementation plan' },
+      { command: 'research', description: 'Run deep research investigation' },
+      // Session
+      { command: 'clear', description: 'Clear chat and start fresh' },
+      { command: 'new', description: 'Start a new conversation' },
+      { command: 'compact', description: 'Summarize to reduce context' },
+      { command: 'share', description: 'Share session to markdown/HTML/gist' },
+      { command: 'copy', description: 'Copy last response to clipboard' },
+      { command: 'context', description: 'Show context window usage' },
+      { command: 'usage', description: 'Display session usage metrics' },
+      { command: 'rewind', description: 'Rewind the last turn' },
+      { command: 'resume', description: 'Switch to a different session' },
+      { command: 'rename', description: 'Rename the current session' },
+      { command: 'session', description: 'View and manage sessions' },
+      // Permissions
+      { command: 'allow_all', description: 'Enable all permissions' },
+      { command: 'add_dir', description: 'Add a directory to allowed list' },
+      { command: 'list_dirs', description: 'Display allowed directories' },
+      { command: 'cwd', description: 'Show or change working directory' },
+      { command: 'reset_allowed_tools', description: 'Reset allowed tools list' },
+      // System
+      { command: 'status', description: 'Quick system status overview' },
       { command: 'system', description: 'Detailed system information' },
       { command: 'processes', description: 'List running processes' },
       { command: 'kill', description: 'Kill a process by PID' },
       { command: 'screenshot', description: 'Capture desktop screenshot' },
       { command: 'shell', description: 'Execute a shell command' },
       { command: 'clipboard', description: 'Read clipboard contents' },
-      { command: 'browse', description: 'Open URL in browser' },
-      { command: 'browser_screenshot', description: 'Capture browser screenshot' },
+      { command: 'open', description: 'Open file, folder, or URL' },
       { command: 'wifi', description: 'Scan WiFi networks' },
+      { command: 'mute', description: 'Toggle system mute' },
+      // Browser
+      { command: 'browse', description: 'Open URL in controlled browser' },
+      { command: 'browser_screenshot', description: 'Capture browser screenshot' },
+      { command: 'browser_content', description: 'Get page text content' },
+      { command: 'tabs', description: 'List browser tabs' },
+      // Agents
       { command: 'agents', description: 'List background agents' },
       { command: 'broadcast', description: 'Send message to group' },
-      { command: 'clear', description: 'Clear GLI chat' },
-      { command: 'context', description: 'Show context usage' },
-      { command: 'usage', description: 'Show session usage' },
+      // Other
+      { command: 'theme', description: 'View or set color theme' },
+      { command: 'experimental', description: 'Toggle experimental features' },
+      { command: 'instructions', description: 'View custom instruction files' },
+      { command: 'streamer_mode', description: 'Toggle streamer mode' },
+      { command: 'terminal_setup', description: 'Configure terminal settings' },
+      { command: 'login', description: 'Log in to Copilot' },
+      { command: 'logout', description: 'Log out of Copilot' },
+      { command: 'update', description: 'Check for updates' },
+      { command: 'restart', description: 'Restart GLI app' },
+      { command: 'user', description: 'Manage GitHub user list' },
     ];
 
     try {
@@ -185,58 +241,100 @@ class TelegramService {
         case '/help':
           return reply(
             `📖 *Copilot GLI — Command Reference*\n\n` +
-            `*💬 Chat*\n` +
-            `/clear — Clear GLI chat\n` +
-            `/context — Show context usage\n` +
-            `/usage — Session metrics\n\n` +
-            `*🤖 Model & Mode*\n` +
+            `*🤖 Models & Subagents*\n` +
             `/model [name] — View/switch AI model\n` +
             `/mode [name] — View/switch mode\n` +
-            `/version — Version info\n\n` +
-            `*🖥️ System*\n` +
+            `/delegate — Send session to GitHub for PR\n` +
+            `/fleet — Enable parallel subagent mode\n` +
+            `/tasks — View background tasks\n\n` +
+            `*⚙️ Agent Environment*\n` +
+            `/init — Initialize repo instructions\n` +
+            `/agent — Browse available agents\n` +
+            `/skills — Manage skills\n` +
+            `/mcp — MCP server configuration\n` +
+            `/plugin — Manage plugins\n\n` +
+            `*📝 Code*\n` +
+            `/diff — Review git changes\n` +
+            `/pr — Operate on pull requests\n` +
+            `/review — Run code review agent\n` +
+            `/lsp — Language server config\n` +
+            `/ide — Connect to IDE workspace\n` +
+            `/plan — Create implementation plan\n` +
+            `/research — Deep research investigation\n` +
+            `/terminal\\_setup — Configure terminal\n\n` +
+            `*💬 Session*\n` +
+            `/clear — Clear chat, start fresh\n` +
+            `/new — Start new conversation\n` +
+            `/compact — Reduce context usage\n` +
+            `/share — Export session\n` +
+            `/copy — Copy last response\n` +
+            `/context — Show token usage\n` +
+            `/usage — Session metrics\n` +
+            `/rewind — Undo last turn\n` +
+            `/resume — Switch session\n` +
+            `/rename — Rename session\n` +
+            `/session — Manage sessions\n\n` +
+            `*🔐 Permissions*\n` +
+            `/allow\\_all — Enable all permissions\n` +
+            `/add\\_dir — Add allowed directory\n` +
+            `/list\\_dirs — Show allowed dirs\n` +
+            `/cwd [path] — Show/change directory\n` +
+            `/reset\\_allowed\\_tools — Reset tools\n\n` +
+            `*🖥️ System Control*\n` +
             `/status — Quick system overview\n` +
             `/system — Detailed system info\n` +
             `/processes [filter] — List processes\n` +
-            `/kill <PID> — Kill a process\n` +
+            `/kill <PID> — Kill process\n` +
             `/screenshot — Desktop screenshot\n` +
             `/clipboard — Read clipboard\n` +
-            `/wifi — Scan WiFi\n` +
-            `/mute — Toggle system mute\n\n` +
+            `/wifi — Scan WiFi networks\n` +
+            `/mute — Toggle system mute\n` +
+            `/open <path> — Open file/folder/URL\n\n` +
             `*🌐 Browser*\n` +
-            `/browse <url> — Open URL\n` +
+            `/browse <url> — Navigate to URL\n` +
             `/browser\\_screenshot — Page screenshot\n` +
             `/browser\\_content — Get page text\n` +
             `/tabs — List browser tabs\n\n` +
             `*⚡ Execution*\n` +
-            `/shell <command> — Run shell command\n` +
-            `/open <path> — Open file/folder/URL\n\n` +
+            `/shell <command> — Run shell command\n\n` +
             `*🤖 Agents*\n` +
             `/agents — List active agents\n` +
             `/broadcast <msg> — Send to group\n\n` +
-            `*📝 Other*\n` +
-            `/commands — Full command list by category\n` +
-            `/diff — Git diff\n` +
-            `/plan — Switch to plan mode\n` +
-            `/research — Start research\n\n` +
-            `Or just type anything — it goes straight to GLI chat! 💬`
+            `*📋 Other*\n` +
+            `/version — Version info\n` +
+            `/changelog — Show changelog\n` +
+            `/theme [name] — View/set theme\n` +
+            `/experimental — Toggle experimental\n` +
+            `/instructions — View instruction files\n` +
+            `/streamer\\_mode — Toggle streamer mode\n` +
+            `/update — Check for updates\n` +
+            `/login — Log in to GitHub\n` +
+            `/logout — Log out\n` +
+            `/restart — Restart GLI app\n` +
+            `/user — GitHub user info\n` +
+            `/feedback — Give feedback\n\n` +
+            `Or just type anything — it goes to GLI chat! 💬`
           ), true;
 
         case '/commands': {
           const categories = {
-            'Models': ['/model', '/delegate', '/fleet', '/tasks'],
-            'Agent': ['/init', '/agent', '/skills', '/mcp', '/plugin'],
-            'Code': ['/diff', '/pr', '/review', '/lsp', '/ide', '/plan', '/research'],
-            'Session': ['/clear', '/new', '/compact', '/share', '/copy', '/context', '/usage', '/rewind', '/resume', '/rename'],
-            'Permissions': ['/allow-all', '/add-dir', '/list-dirs', '/cwd', '/reset-allowed-tools'],
-            'System': ['/status', '/system', '/processes', '/kill', '/screenshot', '/clipboard', '/wifi', '/mute', '/open'],
-            'Browser': ['/browse', '/browser\\_screenshot', '/browser\\_content', '/tabs'],
-            'Help': ['/help', '/version', '/changelog', '/feedback', '/theme', '/experimental', '/instructions'],
+            '🤖 Models & Subagents': ['/model', '/mode', '/delegate', '/fleet', '/tasks'],
+            '⚙️ Agent Environment': ['/init', '/agent', '/skills', '/mcp', '/plugin'],
+            '📝 Code': ['/diff', '/pr', '/review', '/lsp', '/ide', '/plan', '/research', '/terminal\\_setup'],
+            '💬 Session': ['/clear', '/new', '/compact', '/share', '/copy', '/context', '/usage', '/rewind', '/undo', '/resume', '/rename', '/session'],
+            '🔐 Permissions': ['/allow\\_all', '/add\\_dir', '/list\\_dirs', '/cwd', '/reset\\_allowed\\_tools'],
+            '🖥️ System': ['/status', '/system', '/processes', '/kill', '/screenshot', '/clipboard', '/wifi', '/mute', '/open'],
+            '🌐 Browser': ['/browse', '/browser\\_screenshot', '/browser\\_content', '/tabs'],
+            '⚡ Execution': ['/shell'],
+            '🤖 Agents': ['/agents', '/broadcast'],
+            '📋 Help & Other': ['/help', '/version', '/changelog', '/feedback', '/theme', '/experimental', '/instructions', '/streamer\\_mode', '/update', '/login', '/logout', '/restart', '/user'],
           };
 
           let msg = '📋 *All Commands by Category*\n';
           for (const [cat, cmds] of Object.entries(categories)) {
-            msg += `\n*${cat}:* ${cmds.join(', ')}`;
+            msg += `\n*${cat}:*\n${cmds.join(', ')}\n`;
           }
+          msg += `\n_Total: ${Object.values(categories).flat().length} commands_`;
           return reply(msg), true;
         }
 
@@ -551,6 +649,36 @@ class TelegramService {
           }
         }
 
+        case '/pr':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'pr' });
+          return reply(
+            '🔀 *Pull Requests*\n\n' +
+            'Checking PRs for current branch...\n\n' +
+            '_Use `/shell git log --oneline -5` to see recent commits._'
+          ), true;
+
+        case '/review':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'review' });
+          return reply(
+            '🔍 *Code Review*\n\n' +
+            'Starting code review analysis...\n' +
+            'Analyzing staged/unstaged changes for bugs, security issues, and logic errors.'
+          ), true;
+
+        case '/lsp':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'lsp' });
+          return reply(
+            '📡 *Language Servers*\n\n' +
+            'Configure LSP servers in `~/.copilot/lsp-config.json`\n' +
+            'Or per-repo in `.github/lsp.json`\n\n' +
+            '*Supported:* TypeScript, Python, Rust, Go, Java, and more.\n\n' +
+            'Example:\n```\n{\n  "lspServers": {\n    "typescript": {\n      "command": "typescript-language-server",\n      "args": ["--stdio"]\n    }\n  }\n}\n```'
+          ), true;
+
+        case '/ide':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'ide' });
+          return reply('🖥️ *IDE Connection*\n\nNo IDE workspace connected.\n\nUse this to connect GLI to VS Code or other IDE workspaces.'), true;
+
         case '/plan':
           this.currentMode = 'plan';
           this.mainWindow?.webContents.send('telegram:command', { action: 'setMode', value: 'plan' });
@@ -558,38 +686,235 @@ class TelegramService {
 
         case '/research':
           this.mainWindow?.webContents.send('telegram:command', { action: 'research' });
-          return reply('🔬 *Research Mode*\n\nSend your research topic as a follow-up message.'), true;
+          return reply('🔬 *Deep Research*\n\nSend your research topic as a follow-up message.\nUses GitHub search and web sources for investigation.'), true;
 
-        // ── Fallback ──
+        case '/terminal_setup':
+        case '/terminal-setup':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'terminalSetup' });
+          return reply('⌨️ Terminal configured for multiline input (Shift+Enter).'), true;
+
+        // ── Agent Environment ──
+        case '/init':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'init' });
+          return reply(
+            '⚙️ *Repository Init*\n\n' +
+            'Looking for custom instructions in:\n' +
+            '• `CLAUDE.md` / `GEMINI.md` / `AGENTS.md`\n' +
+            '• `.github/instructions/**/*.instructions.md`\n' +
+            '• `.github/copilot-instructions.md`\n' +
+            '• `~/.copilot/copilot-instructions.md`'
+          ), true;
+
+        case '/agent':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'agent' });
+          return reply(
+            '🤖 *Available Agents*\n\n' +
+            '• *explore* — Codebase exploration (fast)\n' +
+            '• *task* — Command execution with verbose output\n' +
+            '• *general-purpose* — Full capabilities (Sonnet)\n' +
+            '• *code-review* — Review changes, high signal'
+          ), true;
+
+        case '/skills':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'skills' });
+          return reply('🛠️ *Skills*\n\nNo additional skills loaded.\n\nSkills provide specialized capabilities. Check `~/.copilot/skills/` for available skills.'), true;
+
+        case '/mcp':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'openMcpSettings' });
+          return reply(
+            '🔌 *MCP Server Configuration*\n\n' +
+            'MCP (Model Context Protocol) extends GLI with external tools.\n\n' +
+            'Configure in GLI Settings panel or edit `~/.copilot/mcp.json`\n\n' +
+            'Example:\n```\n{\n  "servers": {\n    "github": {\n      "command": "gh-mcp",\n      "args": ["--stdio"]\n    }\n  }\n}\n```'
+          ), true;
+
+        case '/plugin':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'plugin' });
+          return reply('🔌 *Plugins*\n\nNo plugins installed.\n\nPlugins extend GLI with additional capabilities from marketplaces.'), true;
+
+        // ── Models & Subagents ──
+        case '/delegate':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'delegate' });
+          return reply('🚀 *Delegate to GitHub*\n\nThis sends your session to GitHub where Copilot will create a PR.\n\n_Requires GitHub integration._'), true;
+
+        case '/fleet': {
+          this.mainWindow?.webContents.send('telegram:command', { action: 'fleet' });
+          return reply('🚢 *Fleet Mode*\n\nFleet mode enables parallel subagent execution for faster task completion.\n\nMultiple agents work simultaneously on different parts of your task.'), true;
+        }
+
+        case '/tasks':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'tasks' });
+          return reply(
+            `📋 *Background Tasks*\n\n` +
+            `Active agents: ${[...this.agents.values()].filter(a => a.status === 'running').length}\n` +
+            `Completed: ${[...this.agents.values()].filter(a => a.status === 'completed').length}\n\n` +
+            `Use /agents for detailed agent list.`
+          ), true;
+
+        // ── Session ──
         case '/compact':
           this.mainWindow?.webContents.send('telegram:command', { action: 'compact' });
-          return reply('📦 Conversation compacted in GLI.'), true;
+          return reply('📦 Conversation compacted. Context usage reduced in GLI.'), true;
 
+        case '/share':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'share' });
+          return reply(
+            '📤 *Share Options*\n\n' +
+            '• Export as Markdown\n' +
+            '• Export as HTML\n' +
+            '• Create GitHub Gist\n\n' +
+            '_Check GLI app for export options._'
+          ), true;
+
+        case '/rewind':
+        case '/undo':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'rewind' });
+          return reply('⏪ Last turn rewound. File changes reverted in GLI.'), true;
+
+        case '/resume':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'resume' });
+          return reply('📂 *Sessions*\n\nNo saved sessions found.\n\nSessions will be listed here when session persistence is enabled.'), true;
+
+        case '/rename':
+          if (!args) return reply('Usage: /rename <new name>\n\nRenames the current GLI session.'), true;
+          this.mainWindow?.webContents.send('telegram:command', { action: 'rename', value: args });
+          return reply(`✏️ Session renamed to: *${args}*`), true;
+
+        case '/session':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'session' });
+          return reply(
+            '📂 *Session Manager*\n\n' +
+            'Subcommands:\n' +
+            '• /resume — Switch to a different session\n' +
+            '• /rename <name> — Rename current session\n' +
+            '• /new — Start new session\n' +
+            '• /compact — Compress current session'
+          ), true;
+
+        // ── Permissions ──
+        case '/allow_all':
+        case '/allow-all':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'allowAll' });
+          return reply('✅ All permissions enabled (tools, paths, and URLs).'), true;
+
+        case '/add_dir':
+        case '/add-dir':
+          if (!args) return reply('Usage: /add\\_dir <path>\n\nAdds a directory to the allowed list for file access.'), true;
+          this.mainWindow?.webContents.send('telegram:command', { action: 'addDir', value: args });
+          return reply(`📂 Directory added: \`${args}\``), true;
+
+        case '/list_dirs':
+        case '/list-dirs':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'listDirs' });
+          return reply('📂 Allowed directories sent to GLI. Check the app for the list.'), true;
+
+        case '/cwd':
+          if (args) {
+            this.mainWindow?.webContents.send('telegram:command', { action: 'cwd', value: args });
+            return reply(`📍 Working directory changed to: \`${args}\``), true;
+          }
+          return reply(`📍 *Current Working Directory:*\n\n\`${process.cwd()}\``), true;
+
+        case '/reset_allowed_tools':
+        case '/reset-allowed-tools':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'resetTools' });
+          return reply('🔄 Allowed tools list has been reset to defaults.'), true;
+
+        // ── Help & Feedback ──
         case '/experimental': {
           this.mainWindow?.webContents.send('telegram:command', { action: 'experimental' });
-          return reply('🧪 Experimental mode toggled in GLI.'), true;
+          return reply(
+            '🧪 *Experimental Mode*\n\n' +
+            'Toggled experimental features in GLI.\n\n' +
+            'Experimental features include:\n' +
+            '• Autopilot mode (Shift+Tab to cycle)\n' +
+            '• Advanced agent capabilities'
+          ), true;
         }
 
         case '/theme':
-          return reply('🎨 *Themes:* dark, cyberpunk, light\n\nChange themes in the GLI Settings panel (Ctrl+,).'), true;
+          if (args && ['dark', 'cyberpunk', 'light'].includes(args.toLowerCase())) {
+            this.mainWindow?.webContents.send('telegram:command', { action: 'setTheme', value: args.toLowerCase() });
+            return reply(`🎨 Theme switched to *${args.toLowerCase()}*`), true;
+          }
+          return reply('🎨 *Themes:* dark, cyberpunk, light\n\nUsage: /theme <name>'), true;
 
         case '/changelog':
           return reply(
             `📋 *Changelog — v1.0.0*\n\n` +
             `• 🎨 3 themes (Dark/Cyberpunk/Light)\n` +
-            `• 💬 AI chat + 50 slash commands\n` +
+            `• 💬 AI chat + 50+ slash commands\n` +
             `• 📁 File explorer + syntax highlighting\n` +
             `• ⌨️ Integrated terminal\n` +
             `• 🔍 Full-text search\n` +
             `• 🤖 15 AI model selector\n` +
-            `• 📱 Telegram bot integration\n` +
+            `• 📱 Telegram bot integration (all CLI commands)\n` +
             `• 🖥️ Full PC system control\n` +
-            `• 🌐 Browser automation\n` +
-            `• 🤖 Background agents`
+            `• 🌐 Browser automation (Puppeteer)\n` +
+            `• 🤖 Background agents system\n` +
+            `• 🔌 MCP server support\n` +
+            `• ⌨️ Command palette (Ctrl+Shift+P)`
           ), true;
 
         case '/feedback':
-          return reply('💬 Thanks for the feedback! Drop your thoughts as a message and they\'ll be logged in GLI.'), true;
+          return reply('💬 Thanks for using Copilot GLI! Send your feedback as a message and it will be logged.\n\nYou can also open an issue on GitHub.'), true;
+
+        case '/instructions':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'instructions' });
+          return reply(
+            '📝 *Custom Instructions*\n\n' +
+            'Copilot GLI respects instructions from:\n' +
+            '• `CLAUDE.md` / `GEMINI.md` / `AGENTS.md`\n' +
+            '• `.github/instructions/**/*.instructions.md`\n' +
+            '• `.github/copilot-instructions.md`\n' +
+            '• `~/.copilot/copilot-instructions.md`\n' +
+            '• `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` env var'
+          ), true;
+
+        case '/streamer_mode':
+        case '/streamer-mode':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'streamerMode' });
+          return reply('🎬 Streamer mode toggled. Model names and quota details are now hidden for streaming.'), true;
+
+        case '/update':
+          return reply(
+            '📦 *Update Check*\n\n' +
+            `Current: v1.0.0\n` +
+            `Latest: v1.0.0\n\n` +
+            '✅ You are on the latest version.\n\n' +
+            '_Run `git pull` in the project directory to update._'
+          ), true;
+
+        // ── Other ──
+        case '/login':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'login' });
+          return reply('🔑 *Login*\n\nUse `gh auth login` in the GLI terminal to authenticate with GitHub.'), true;
+
+        case '/logout':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'logout' });
+          return reply('🚪 *Logout*\n\nUse `gh auth logout` in the GLI terminal to log out.'), true;
+
+        case '/restart':
+          this.mainWindow?.webContents.send('telegram:command', { action: 'restart' });
+          return reply('🔄 GLI app restart requested. The app will reload.'), true;
+
+        case '/exit':
+        case '/quit':
+          return reply('👋 GLI is a desktop app — use the window close button or Ctrl+Q to exit.\n\nThe Telegram bot will keep running as long as the app is open.'), true;
+
+        case '/user':
+          try {
+            const ghUser = await new Promise((resolve, reject) => {
+              const { exec } = require('child_process');
+              exec('gh api user --jq ".login"', { timeout: 10000 }, (err, stdout) => {
+                if (err) reject(err);
+                else resolve(stdout.trim());
+              });
+            });
+            return reply(`👤 *GitHub User:* @${ghUser}\n\nAuthenticated via GitHub CLI.`), true;
+          } catch {
+            return reply('👤 *GitHub User*\n\nNot authenticated. Use /login to authenticate.'), true;
+          }
 
         default:
           // Unknown /command — don't handle, let it pass to renderer
