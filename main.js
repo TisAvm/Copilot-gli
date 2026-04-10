@@ -19,6 +19,10 @@ let obsidian;
 let openrouter;
 let copilotApi;
 
+// Shared conversation history — synced between GUI and Telegram
+const sharedHistory = [];
+const MAX_SHARED_HISTORY = 50;
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -62,6 +66,7 @@ app.whenReady().then(async () => {
   telegram.setControllers(systemCtl, browserCtl);
   telegram.setOpenRouter(openrouter);
   telegram.setCopilotApi(copilotApi);
+  telegram._sharedHistory = sharedHistory; // GUI ↔ Telegram conversation sync
   telegram._startTime = Date.now();
   await telegram.start();
   await obsidian.init();
@@ -326,3 +331,24 @@ ipcMain.handle('openrouter:chatStream', async (_, { messages, options }) => {
 ipcMain.handle('copilot:getInfo', () => copilotApi?.getInfo());
 ipcMain.handle('copilot:getModels', () => copilotApi?.getModels());
 ipcMain.handle('copilot:chat', async (_, { messages, options }) => copilotApi?.chat(messages, options));
+
+// ── Shared Conversation History (GUI ↔ Telegram sync) ───
+
+ipcMain.handle('chat:pushHistory', (_, { role, content }) => {
+  sharedHistory.push({ role, content, ts: Date.now() });
+  while (sharedHistory.length > MAX_SHARED_HISTORY) sharedHistory.shift();
+  // Also push into Telegram's conversation map so the bot has context
+  if (telegram && telegram.groupId) {
+    const chatKey = telegram.groupId.toString();
+    if (!telegram.conversations.has(chatKey)) {
+      telegram.conversations.set(chatKey, []);
+    }
+    const hist = telegram.conversations.get(chatKey);
+    hist.push({ role, content });
+    while (hist.length > 30) hist.shift();
+  }
+});
+
+ipcMain.handle('chat:getHistory', () => {
+  return sharedHistory.slice(-50);
+});

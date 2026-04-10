@@ -1036,11 +1036,13 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
     }
   }
 
-  // Chat history for OpenRouter context
+  // Chat history for AI context
   const chatHistory = [];
 
   async function generateResponse(userMessage) {
     chatHistory.push({ role: 'user', content: userMessage });
+    // Sync user message to shared history (for Telegram continuity)
+    window.gli.chat?.pushHistory('user', userMessage);
 
     const sysMsg = 'You are Copilot GLI, an AI assistant embedded in a desktop application. Be helpful, concise, and write great code. Use markdown formatting.';
     const messages = [
@@ -1060,6 +1062,7 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
           const result = await window.gli.copilot.chat(messages, { model: App.currentModel });
           if (result.success) {
             chatHistory.push({ role: 'assistant', content: result.content });
+            window.gli.chat?.pushHistory('assistant', result.content);
             return result.content;
           }
         }
@@ -1073,6 +1076,7 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
         const result = await window.gli.openrouter.chat(messages, { model: orModelId });
         if (result.success) {
           chatHistory.push({ role: 'assistant', content: result.content });
+          window.gli.chat?.pushHistory('assistant', result.content);
           return result.content;
         } else {
           return `⚠️ OpenRouter Error: ${result.error}\n\nTip: Check your API key in .env and try again.`;
@@ -1089,6 +1093,7 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
         const result = await window.gli.copilot.chat(messages, { model: 'gpt-4o-mini' });
         if (result.success) {
           chatHistory.push({ role: 'assistant', content: result.content });
+          window.gli.chat?.pushHistory('assistant', result.content);
           return result.content;
         }
       }

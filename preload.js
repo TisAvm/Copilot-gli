@@ -71,6 +71,12 @@ contextBridge.exposeInMainWorld('gli', {
     chat: (messages, options) => ipcRenderer.invoke('copilot:chat', { messages, options }),
   },
 
+  // Shared chat history (GUI ↔ Telegram sync)
+  chat: {
+    pushHistory: (role, content) => ipcRenderer.invoke('chat:pushHistory', { role, content }),
+    getHistory: () => ipcRenderer.invoke('chat:getHistory'),
+  },
+
   // System Control
   system: {
     quickInfo: () => ipcRenderer.invoke('system:quickInfo'),

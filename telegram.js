@@ -1034,14 +1034,28 @@ Current model: ${this.currentModel}`;
     } catch {}
 
     // Get or create conversation history for this chat
+    // If empty, seed from shared history (carries over GUI context)
     const chatKey = chatId.toString();
     if (!this.conversations.has(chatKey)) {
       this.conversations.set(chatKey, []);
     }
     const history = this.conversations.get(chatKey);
 
+    // Seed from shared history on first Telegram message (GUI → Telegram continuity)
+    if (history.length === 0 && this._sharedHistory && this._sharedHistory.length > 0) {
+      const seed = this._sharedHistory.slice(-20);
+      history.push(...seed);
+      console.log(`[Telegram] Seeded ${seed.length} messages from GUI conversation`);
+    }
+
     // Add user message to history
     history.push({ role: 'user', content: text });
+
+    // Also push to shared history for reverse sync
+    if (this._sharedHistory) {
+      this._sharedHistory.push({ role: 'user', content: text, ts: Date.now() });
+      while (this._sharedHistory.length > 50) this._sharedHistory.shift();
+    }
 
     // Trim history if too long
     while (history.length > this.maxHistoryPerChat) {
@@ -1068,6 +1082,12 @@ Current model: ${this.currentModel}`;
 
         // Add assistant response to history
         history.push({ role: 'assistant', content: reply });
+
+        // Push to shared history
+        if (this._sharedHistory) {
+          this._sharedHistory.push({ role: 'assistant', content: reply, ts: Date.now() });
+          while (this._sharedHistory.length > 50) this._sharedHistory.shift();
+        }
 
         // Send to Telegram (split if too long — Telegram limit is 4096 chars)
         await this.sendLongReply(chatId, reply, messageId);
