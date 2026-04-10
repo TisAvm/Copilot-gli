@@ -22,7 +22,8 @@ class TelegramService {
     this.systemCtl = null;
     this.browserCtl = null;
     this.openrouter = null;
-    this.currentModel = process.env.OPENROUTER_DEFAULT_MODEL || 'anthropic/claude-sonnet-4-20250514';
+    this.copilotApi = null;
+    this.currentModel = process.env.OPENROUTER_DEFAULT_MODEL || 'gpt-4o-mini';
     this.currentMode = 'interactive';
     // Per-chat conversation history for AI context
     this.conversations = new Map();
@@ -42,6 +43,10 @@ Current model: ${this.currentModel}`;
 
   setOpenRouter(openrouterService) {
     this.openrouter = openrouterService;
+  }
+
+  setCopilotApi(copilotApiService) {
+    this.copilotApi = copilotApiService;
   }
 
   async start() {
@@ -1010,9 +1015,14 @@ Current model: ${this.currentModel}`;
    * Process a user message through OpenRouter AI and reply on Telegram
    */
   async processAIMessage(chatId, messageId, text, from) {
-    if (!this.openrouter || !this.openrouter.enabled) {
+    // Determine which AI backend to use: CopilotAPI (GitHub token) > OpenRouter > none
+    const aiBackend = this._getAIBackend();
+    if (!aiBackend) {
       await this.sendReply(chatId,
-        '⚠️ *AI not configured.*\n\nSet `OPENROUTER_API_KEY` in your `.env` file to enable AI responses.\n\nGet a free key at [openrouter.ai](https://openrouter.ai)',
+        '⚠️ *AI not configured.*\n\n' +
+        'Option 1: Run `gh auth login` to use GitHub Copilot models (free)\n' +
+        'Option 2: Set `OPENROUTER_API_KEY` in `.env` for 200+ models\n\n' +
+        'Get a free OpenRouter key at [openrouter.ai](https://openrouter.ai)',
         messageId
       );
       return;
@@ -1045,9 +1055,9 @@ Current model: ${this.currentModel}`;
     ];
 
     try {
-      console.log(`[Telegram] Sending to AI (model: ${this.currentModel}): ${text.substring(0, 60)}...`);
+      console.log(`[Telegram] Sending to AI (${aiBackend.name}, model: ${this.currentModel}): ${text.substring(0, 60)}...`);
 
-      const result = await this.openrouter.chat(messages, {
+      const result = await aiBackend.service.chat(messages, {
         model: this.currentModel,
         maxTokens: 4096,
         temperature: 0.7,
@@ -1141,6 +1151,20 @@ Current model: ${this.currentModel}`;
    */
   clearConversation(chatId) {
     this.conversations.delete(chatId.toString());
+  }
+
+  /**
+   * Determine which AI backend is available
+   * Priority: CopilotAPI (GitHub Models, free) > OpenRouter (paid/free) > null
+   */
+  _getAIBackend() {
+    if (this.copilotApi && this.copilotApi.enabled) {
+      return { name: 'Copilot', service: this.copilotApi };
+    }
+    if (this.openrouter && this.openrouter.enabled) {
+      return { name: 'OpenRouter', service: this.openrouter };
+    }
+    return null;
   }
 
   /**

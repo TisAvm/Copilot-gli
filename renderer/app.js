@@ -1047,17 +1047,30 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
   const chatHistory = [];
 
   async function generateResponse(userMessage) {
-    // If the current model is an OpenRouter model, use real AI
+    chatHistory.push({ role: 'user', content: userMessage });
+
+    const sysMsg = 'You are Copilot GLI, an AI assistant embedded in a desktop application. Be helpful, concise, and write great code. Use markdown formatting.';
+    const messages = [
+      { role: 'system', content: sysMsg },
+      ...chatHistory.slice(-20),
+    ];
+
+    // Priority 1: Copilot API (GitHub Models — uses gh auth, free)
+    try {
+      const copilotInfo = await window.gli.copilot?.getInfo();
+      if (copilotInfo?.enabled) {
+        const model = App.currentModel.startsWith('openrouter/') ? 'gpt-4o-mini' : App.currentModel;
+        const result = await window.gli.copilot.chat(messages, { model });
+        if (result.success) {
+          chatHistory.push({ role: 'assistant', content: result.content });
+          return result.content;
+        }
+      }
+    } catch {}
+
+    // Priority 2: OpenRouter (if API key configured)
     if (App.currentModel.startsWith('openrouter/')) {
       const orModelId = App.currentModel.replace('openrouter/', '');
-      chatHistory.push({ role: 'user', content: userMessage });
-
-      // Keep last 20 messages for context
-      const messages = [
-        { role: 'system', content: 'You are Copilot GLI, an AI assistant embedded in a desktop application. Be helpful, concise, and write great code. Use markdown formatting.' },
-        ...chatHistory.slice(-20),
-      ];
-
       try {
         const result = await window.gli.openrouter.chat(messages, { model: orModelId });
         if (result.success) {
@@ -1072,6 +1085,7 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
     }
 
     // Fallback: simulated responses (demo mode)
+    chatHistory.pop(); // remove the user message we added
     return generateDemoResponse(userMessage);
   }
 
@@ -1953,12 +1967,23 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
   // ═══════════════════════════════════════════════════════════
   //  Particle System
   // ═══════════════════════════════════════════════════════════
-  const canvas = $('#particle-canvas');
-  const ctx = canvas?.getContext('2d');
+  let _particleCanvas = null;
+  let _particleCtx = null;
   let particles = [];
   let animationFrame = null;
 
+  function _getCanvas() {
+    if (!_particleCanvas) _particleCanvas = $('#particle-canvas');
+    return _particleCanvas;
+  }
+  function _getCtx() {
+    if (!_particleCtx && _getCanvas()) _particleCtx = _getCanvas().getContext('2d');
+    return _particleCtx;
+  }
+
   function initParticles() {
+    const canvas = _getCanvas();
+    const ctx = _getCtx();
     if (!canvas || !ctx) return;
 
     cancelAnimationFrame(animationFrame);
@@ -1987,6 +2012,8 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
   }
 
   function animateParticles() {
+    const canvas = _getCanvas();
+    const ctx = _getCtx();
     if (!ctx || !canvas) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -2030,6 +2057,7 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
   }
 
   window.addEventListener('resize', () => {
+    const canvas = _getCanvas();
     if (canvas) {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;

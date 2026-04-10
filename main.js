@@ -9,6 +9,7 @@ const SystemControl = require('./system-control');
 const BrowserControl = require('./browser-control');
 const ObsidianService = require('./obsidian');
 const OpenRouterService = require('./openrouter');
+const CopilotAPI = require('./copilot-api');
 
 let mainWindow;
 let telegram;
@@ -16,6 +17,7 @@ let systemCtl;
 let browserCtl;
 let obsidian;
 let openrouter;
+let copilotApi;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -54,10 +56,12 @@ app.whenReady().then(async () => {
   browserCtl = new BrowserControl(mainWindow);
   obsidian = new ObsidianService(mainWindow);
   openrouter = new OpenRouterService();
+  copilotApi = new CopilotAPI();
 
   telegram = new TelegramService(mainWindow);
   telegram.setControllers(systemCtl, browserCtl);
   telegram.setOpenRouter(openrouter);
+  telegram.setCopilotApi(copilotApi);
   telegram._startTime = Date.now();
   await telegram.start();
   await obsidian.init();
@@ -316,3 +320,9 @@ ipcMain.handle('openrouter:chatStream', async (_, { messages, options }) => {
   }, options);
   return fullContent;
 });
+
+// ── Copilot API (GitHub Models) IPC Handlers ────────────
+
+ipcMain.handle('copilot:getInfo', () => copilotApi?.getInfo());
+ipcMain.handle('copilot:getModels', () => copilotApi?.getModels());
+ipcMain.handle('copilot:chat', async (_, { messages, options }) => copilotApi?.chat(messages, options));

@@ -64,6 +64,13 @@ contextBridge.exposeInMainWorld('gli', {
     },
   },
 
+  // Copilot API (GitHub Models)
+  copilot: {
+    getInfo: () => ipcRenderer.invoke('copilot:getInfo'),
+    getModels: () => ipcRenderer.invoke('copilot:getModels'),
+    chat: (messages, options) => ipcRenderer.invoke('copilot:chat', { messages, options }),
+  },
+
   // System Control
   system: {
     quickInfo: () => ipcRenderer.invoke('system:quickInfo'),
