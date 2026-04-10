@@ -1,0 +1,19 @@
+{
+  "name": "github-copilot-gli",
+  "version": "1.0.0",
+  "description": "GitHub Copilot GLI — A stunning GUI-based AI coding assistant. Where CLI is text, GLI is visual.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "keywords": ["github", "copilot", "gui", "electron", "ai", "coding-assistant"],
+  "author": "Copilot GLI Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  },
+  "dependencies": {
+    "highlight.js": "^11.9.0"
+  }
+}
