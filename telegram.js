@@ -21,13 +21,27 @@ class TelegramService {
     this.agentIdCounter = 0;
     this.systemCtl = null;
     this.browserCtl = null;
-    this.currentModel = 'claude-sonnet-4-20250514';
+    this.openrouter = null;
+    this.currentModel = process.env.OPENROUTER_DEFAULT_MODEL || 'anthropic/claude-sonnet-4-20250514';
     this.currentMode = 'interactive';
+    // Per-chat conversation history for AI context
+    this.conversations = new Map();
+    this.maxHistoryPerChat = 30;
+    this.systemPrompt = `You are Copilot GLI — a powerful AI assistant accessible via Telegram.
+You can help with coding, system administration, file operations, browsing, and general knowledge.
+Be concise but thorough. Use Markdown formatting for code blocks and emphasis.
+When the user asks you to do something on their PC (run commands, open files, take screenshots, etc.), 
+tell them to use the appropriate /slash command (e.g., /shell, /screenshot, /open, /browse).
+Current model: ${this.currentModel}`;
   }
 
   setControllers(systemCtl, browserCtl) {
     this.systemCtl = systemCtl;
     this.browserCtl = browserCtl;
+  }
+
+  setOpenRouter(openrouterService) {
+    this.openrouter = openrouterService;
   }
 
   async start() {
@@ -83,7 +97,7 @@ class TelegramService {
         if (handled) return;
       }
 
-      // Forward non-command messages to renderer
+      // Forward to renderer for display
       const messageData = {
         id: msg.message_id,
         chatId: chatId.toString(),
@@ -100,6 +114,9 @@ class TelegramService {
       };
 
       this.mainWindow?.webContents.send('telegram:message', messageData);
+
+      // Process through AI and reply back
+      await this.processAIMessage(chatId, msg.message_id, cleanText, from);
     });
 
     // Handle photo messages for browser interaction
@@ -341,23 +358,37 @@ class TelegramService {
         // ── Model & Mode ──
         case '/model': {
           const models = [
-            'claude-sonnet-4-20250514', 'claude-haiku-4-20250414', 'claude-opus-4-20250918',
-            'gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.5-preview', 'o3-mini', 'o4-mini',
+            { id: 'anthropic/claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
+            { id: 'anthropic/claude-haiku-4-20250414', label: 'Claude Haiku 4' },
+            { id: 'anthropic/claude-opus-4-20250918', label: 'Claude Opus 4' },
+            { id: 'openai/gpt-4o', label: 'GPT-4o' },
+            { id: 'openai/gpt-4o-mini', label: 'GPT-4o Mini' },
+            { id: 'openai/gpt-4.1', label: 'GPT-4.1' },
+            { id: 'openai/o4-mini', label: 'o4-mini' },
+            { id: 'google/gemini-2.5-pro-preview', label: 'Gemini 2.5 Pro' },
+            { id: 'google/gemini-2.5-flash-preview', label: 'Gemini 2.5 Flash' },
+            { id: 'deepseek/deepseek-chat-v3-0324', label: 'DeepSeek V3' },
+            { id: 'deepseek/deepseek-r1', label: 'DeepSeek R1' },
+            { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (Free)' },
+            { id: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (Free)' },
           ];
 
           if (!args) {
             return reply(
               `🤖 *Current Model:* \`${this.currentModel}\`\n\n` +
-              `*Available models:*\n${models.map(m => `• \`${m}\`${m === this.currentModel ? ' ✓' : ''}`).join('\n')}\n\n` +
+              `*Available models:*\n${models.map(m => `• \`${m.id}\` — ${m.label}${m.id === this.currentModel ? ' ✓' : ''}`).join('\n')}\n\n` +
               `Switch with: /model <name>`
             ), true;
           }
 
-          const match = models.find(m => m.includes(args.toLowerCase()));
+          const query = args.toLowerCase();
+          const match = models.find(m =>
+            m.id.toLowerCase().includes(query) || m.label.toLowerCase().includes(query)
+          );
           if (match) {
-            this.currentModel = match;
-            this.mainWindow?.webContents.send('telegram:command', { action: 'setModel', value: match });
-            return reply(`✅ Model switched to \`${match}\``), true;
+            this.currentModel = match.id;
+            this.mainWindow?.webContents.send('telegram:command', { action: 'setModel', value: match.id });
+            return reply(`✅ Model switched to *${match.label}*\n\`${match.id}\``), true;
           }
           return reply(`❌ Unknown model. Use /model to see available options.`), true;
         }
@@ -392,12 +423,14 @@ class TelegramService {
 
         // ── Session ──
         case '/clear':
+          this.clearConversation(chatId);
           this.mainWindow?.webContents.send('telegram:command', { action: 'clearChat' });
-          return reply('🧹 GLI chat cleared.'), true;
+          return reply('🧹 Chat history cleared.'), true;
 
         case '/new':
+          this.clearConversation(chatId);
           this.mainWindow?.webContents.send('telegram:command', { action: 'newSession' });
-          return reply('✨ New GLI session started.'), true;
+          return reply('✨ New session started. Conversation history reset.'), true;
 
         case '/context':
           this.mainWindow?.webContents.send('telegram:command', { action: 'context' });
@@ -967,6 +1000,147 @@ class TelegramService {
       return { success: false, error: 'No TELEGRAM_GROUP_ID configured' };
     }
     return this.sendReply(this.groupId, text);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  AI Message Processing
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Process a user message through OpenRouter AI and reply on Telegram
+   */
+  async processAIMessage(chatId, messageId, text, from) {
+    if (!this.openrouter || !this.openrouter.enabled) {
+      await this.sendReply(chatId,
+        '⚠️ *AI not configured.*\n\nSet `OPENROUTER_API_KEY` in your `.env` file to enable AI responses.\n\nGet a free key at [openrouter.ai](https://openrouter.ai)',
+        messageId
+      );
+      return;
+    }
+
+    // Send typing indicator
+    try {
+      await this.bot.sendChatAction(chatId, 'typing');
+    } catch {}
+
+    // Get or create conversation history for this chat
+    const chatKey = chatId.toString();
+    if (!this.conversations.has(chatKey)) {
+      this.conversations.set(chatKey, []);
+    }
+    const history = this.conversations.get(chatKey);
+
+    // Add user message to history
+    history.push({ role: 'user', content: text });
+
+    // Trim history if too long
+    while (history.length > this.maxHistoryPerChat) {
+      history.shift();
+    }
+
+    // Build messages array with system prompt
+    const messages = [
+      { role: 'system', content: this.systemPrompt },
+      ...history,
+    ];
+
+    try {
+      console.log(`[Telegram] Sending to AI (model: ${this.currentModel}): ${text.substring(0, 60)}...`);
+
+      const result = await this.openrouter.chat(messages, {
+        model: this.currentModel,
+        maxTokens: 4096,
+        temperature: 0.7,
+      });
+
+      if (result.success) {
+        const reply = result.content;
+
+        // Add assistant response to history
+        history.push({ role: 'assistant', content: reply });
+
+        // Send to Telegram (split if too long — Telegram limit is 4096 chars)
+        await this.sendLongReply(chatId, reply, messageId);
+
+        // Also forward the AI response to the renderer
+        this.mainWindow?.webContents.send('telegram:ai-response', {
+          chatId: chatKey,
+          userMessage: text,
+          aiResponse: reply,
+          model: result.model || this.currentModel,
+          usage: result.usage,
+          from: {
+            id: from.id,
+            name: `${from.first_name || ''}${from.last_name ? ' ' + from.last_name : ''}`.trim(),
+          },
+        });
+
+        console.log(`[Telegram] AI replied (${reply.length} chars, model: ${result.model || this.currentModel})`);
+      } else {
+        const errMsg = `❌ *AI Error:* ${result.error}`;
+        await this.sendReply(chatId, errMsg, messageId);
+        console.error(`[Telegram] AI error: ${result.error}`);
+      }
+    } catch (err) {
+      await this.sendReply(chatId, `❌ *Error:* ${err.message}`, messageId);
+      console.error(`[Telegram] AI processing failed:`, err.message);
+    }
+  }
+
+  /**
+   * Send a long message split into chunks (Telegram 4096 char limit)
+   */
+  async sendLongReply(chatId, text, replyToMessageId) {
+    const MAX_LEN = 4000; // Leave room for formatting
+    if (text.length <= MAX_LEN) {
+      return this.sendReply(chatId, text, replyToMessageId);
+    }
+
+    // Split at paragraph boundaries first, then by length
+    const chunks = [];
+    let remaining = text;
+
+    while (remaining.length > 0) {
+      if (remaining.length <= MAX_LEN) {
+        chunks.push(remaining);
+        break;
+      }
+
+      // Try to split at a paragraph boundary
+      let splitIndex = remaining.lastIndexOf('\n\n', MAX_LEN);
+      if (splitIndex < MAX_LEN * 0.3) {
+        // No good paragraph break, try newline
+        splitIndex = remaining.lastIndexOf('\n', MAX_LEN);
+      }
+      if (splitIndex < MAX_LEN * 0.3) {
+        // No good newline, force split at max
+        splitIndex = MAX_LEN;
+      }
+
+      chunks.push(remaining.substring(0, splitIndex));
+      remaining = remaining.substring(splitIndex).trimStart();
+    }
+
+    // Send first chunk as reply, rest as follow-ups
+    for (let i = 0; i < chunks.length; i++) {
+      const prefix = chunks.length > 1 ? `_(${i + 1}/${chunks.length})_\n` : '';
+      await this.sendReply(
+        chatId,
+        prefix + chunks[i],
+        i === 0 ? replyToMessageId : null
+      );
+      // Small delay between chunks to avoid rate limiting
+      if (i < chunks.length - 1) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+  }
+
+  /**
+   * Clear conversation history for a chat
+   */
+  clearConversation(chatId) {
+    this.conversations.delete(chatId.toString());
   }
 
   /**

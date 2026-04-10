@@ -57,6 +57,7 @@ app.whenReady().then(async () => {
 
   telegram = new TelegramService(mainWindow);
   telegram.setControllers(systemCtl, browserCtl);
+  telegram.setOpenRouter(openrouter);
   telegram._startTime = Date.now();
   await telegram.start();
   await obsidian.init();
