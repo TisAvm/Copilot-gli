@@ -1800,6 +1800,52 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
       updateTelegramStatus(data.status, data.message);
     });
 
+    // Handle commands forwarded from Telegram bot
+    window.gli.telegram.onCommand((cmd) => {
+      switch (cmd.action) {
+        case 'setModel': {
+          const model = MODELS.find(m => m.id === cmd.value);
+          if (model) {
+            App.currentModel = model.id;
+            localStorage.setItem('gli-model', model.id);
+            const modelName = $('#model-name');
+            if (modelName) modelName.textContent = model.name;
+            addChatMessage('assistant', `🤖 Model switched to **${model.name}** (via Telegram)`);
+          }
+          break;
+        }
+        case 'setMode':
+          setMode(cmd.value);
+          addChatMessage('assistant', `🔄 Mode switched to **${cmd.value}** (via Telegram)`);
+          break;
+        case 'clearChat':
+          chatMessages.innerHTML = '';
+          addChatMessage('assistant', '🧹 Chat cleared (via Telegram command).');
+          break;
+        case 'newSession':
+          chatMessages.innerHTML = '';
+          addChatMessage('assistant', '✨ New session started (via Telegram).');
+          break;
+        case 'context':
+          executeSlashCommand('context');
+          break;
+        case 'compact':
+          executeSlashCommand('compact');
+          break;
+        case 'copyLast':
+          executeSlashCommand('copyLast');
+          break;
+        case 'experimental':
+          executeSlashCommand('experimental');
+          break;
+        case 'research':
+          executeSlashCommand('research');
+          break;
+        default:
+          addChatMessage('assistant', `⚡ Telegram command: ${cmd.action}`);
+      }
+    });
+
     // Initial status check
     (async () => {
       const info = await window.gli.telegram.getInfo();

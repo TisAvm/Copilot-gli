@@ -48,6 +48,9 @@ contextBridge.exposeInMainWorld('gli', {
     onStatus: (callback) => {
       ipcRenderer.on('telegram:status', (_, data) => callback(data));
     },
+    onCommand: (callback) => {
+      ipcRenderer.on('telegram:command', (_, data) => callback(data));
+    },
     // Background Agents
     createAgent: (name, task, options) =>
       ipcRenderer.invoke('telegram:createAgent', { name, task, options }),

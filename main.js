@@ -50,6 +50,8 @@ app.whenReady().then(async () => {
   browserCtl = new BrowserControl(mainWindow);
 
   telegram = new TelegramService(mainWindow);
+  telegram.setControllers(systemCtl, browserCtl);
+  telegram._startTime = Date.now();
   await telegram.start();
 });
 
