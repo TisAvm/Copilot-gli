@@ -49,6 +49,22 @@ document.addEventListener('DOMContentLoaded', () => {
     { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', tier: 'fast', family: 'OpenAI' },
     { id: 'gpt-5-mini', name: 'GPT-5 Mini', tier: 'fast', family: 'OpenAI' },
     { id: 'gpt-4.1', name: 'GPT-4.1', tier: 'fast', family: 'OpenAI' },
+    // OpenRouter Models
+    { id: 'openrouter/anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4 (OR)', tier: 'standard', family: 'OpenRouter' },
+    { id: 'openrouter/anthropic/claude-haiku-4-20250414', name: 'Claude Haiku 4 (OR)', tier: 'fast', family: 'OpenRouter' },
+    { id: 'openrouter/openai/gpt-4o', name: 'GPT-4o (OR)', tier: 'standard', family: 'OpenRouter' },
+    { id: 'openrouter/openai/gpt-4o-mini', name: 'GPT-4o Mini (OR)', tier: 'fast', family: 'OpenRouter' },
+    { id: 'openrouter/google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (OR)', tier: 'standard', family: 'OpenRouter' },
+    { id: 'openrouter/google/gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (OR)', tier: 'fast', family: 'OpenRouter' },
+    { id: 'openrouter/deepseek/deepseek-chat-v3-0324', name: 'DeepSeek V3 (OR)', tier: 'standard', family: 'OpenRouter' },
+    { id: 'openrouter/deepseek/deepseek-r1', name: 'DeepSeek R1 (OR)', tier: 'premium', family: 'OpenRouter' },
+    { id: 'openrouter/meta-llama/llama-4-maverick', name: 'Llama 4 Maverick (OR)', tier: 'standard', family: 'OpenRouter' },
+    { id: 'openrouter/mistralai/codestral-2501', name: 'Codestral (OR)', tier: 'standard', family: 'OpenRouter' },
+    // Free models via OpenRouter
+    { id: 'openrouter/meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', tier: 'free', family: 'OpenRouter Free' },
+    { id: 'openrouter/google/gemma-3-27b-it:free', name: 'Gemma 3 27B (Free)', tier: 'free', family: 'OpenRouter Free' },
+    { id: 'openrouter/deepseek/deepseek-chat-v3-0324:free', name: 'DeepSeek V3 (Free)', tier: 'free', family: 'OpenRouter Free' },
+    { id: 'openrouter/qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B (Free)', tier: 'free', family: 'OpenRouter Free' },
   ];
 
   // ═══════════════════════════════════════════════════════════
@@ -121,6 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
     { keys: 'Ctrl+2', action: 'File Explorer', fn: () => switchPanel('files') },
     { keys: 'Ctrl+3', action: 'Search', fn: () => switchPanel('search') },
     { keys: 'Ctrl+4', action: 'Terminal', fn: () => switchPanel('terminal') },
+    { keys: 'Ctrl+5', action: 'Telegram', fn: () => switchPanel('telegram') },
+    { keys: 'Ctrl+6', action: 'Agents', fn: () => switchPanel('agents') },
+    { keys: 'Ctrl+7', action: 'System', fn: () => switchPanel('system') },
+    { keys: 'Ctrl+8', action: 'Browser', fn: () => switchPanel('browser') },
+    { keys: 'Ctrl+9', action: 'Obsidian', fn: () => switchPanel('obsidian') },
     { keys: 'Ctrl+,', action: 'Settings', fn: () => switchPanel('settings') },
     { keys: 'Ctrl+Shift+P', action: 'Command Palette', fn: () => toggleCommandPalette() },
     { keys: 'Shift+Tab', action: 'Cycle mode', fn: () => cycleMode() },
@@ -869,6 +890,12 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
     }
 
     addChatMessage('user', text);
+
+    // Record to Obsidian
+    window.gli.obsidian?.recordMessage('user', text, {
+      model: App.currentModel, mode: App.currentMode, source: 'chat'
+    });
+
     showTypingIndicator();
     updateStatus('Thinking...');
 
@@ -877,9 +904,46 @@ I'm your AI coding assistant with a visual twist. Here's what I can help with:
     removeTypingIndicator();
     addChatMessage('assistant', response);
     updateStatus('Ready');
+
+    // Record AI response to Obsidian
+    window.gli.obsidian?.recordMessage('assistant', response, {
+      model: App.currentModel, mode: App.currentMode, source: 'chat'
+    });
   }
 
+  // Chat history for OpenRouter context
+  const chatHistory = [];
+
   async function generateResponse(userMessage) {
+    // If the current model is an OpenRouter model, use real AI
+    if (App.currentModel.startsWith('openrouter/')) {
+      const orModelId = App.currentModel.replace('openrouter/', '');
+      chatHistory.push({ role: 'user', content: userMessage });
+
+      // Keep last 20 messages for context
+      const messages = [
+        { role: 'system', content: 'You are Copilot GLI, an AI assistant embedded in a desktop application. Be helpful, concise, and write great code. Use markdown formatting.' },
+        ...chatHistory.slice(-20),
+      ];
+
+      try {
+        const result = await window.gli.openrouter.chat(messages, { model: orModelId });
+        if (result.success) {
+          chatHistory.push({ role: 'assistant', content: result.content });
+          return result.content;
+        } else {
+          return `⚠️ OpenRouter Error: ${result.error}\n\nTip: Check your API key in .env and try again.`;
+        }
+      } catch (err) {
+        return `❌ Request failed: ${err.message}`;
+      }
+    }
+
+    // Fallback: simulated responses (demo mode)
+    return generateDemoResponse(userMessage);
+  }
+
+  async function generateDemoResponse(userMessage) {
     await sleep(800 + Math.random() * 1200);
 
     const lower = userMessage.toLowerCase();
@@ -1690,6 +1754,9 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
         case 't': e.preventDefault(); executeSlashCommand('runTests'); break;
         case '5': e.preventDefault(); switchPanel('telegram'); break;
         case '6': e.preventDefault(); switchPanel('agents'); break;
+        case '7': e.preventDefault(); switchPanel('system'); break;
+        case '8': e.preventDefault(); switchPanel('browser'); break;
+        case '9': e.preventDefault(); switchPanel('obsidian'); break;
         case 's': e.preventDefault(); if (App.currentPanel === 'search') { searchInput?.focus(); } break;
       }
       return;
@@ -2428,6 +2495,212 @@ Pro tip: Use \`git log --oneline --graph --all\` for a visual branch history!`;
       }
     });
   }
+
+  // ═══════════════════════════════════════════════════════════
+  //  Obsidian Vault Panel
+  // ═══════════════════════════════════════════════════════════
+  let obsidianCurrentPath = '';
+
+  async function initObsidian() {
+    try {
+      const info = await window.gli.obsidian.getInfo();
+      updateObsidianStatus(info);
+      if (info.enabled) {
+        await loadObsidianFolder('');
+      }
+    } catch {}
+  }
+
+  function updateObsidianStatus(info) {
+    const badge = $('#obsidian-status-badge');
+    const dot = $('#obsidian-status-dot');
+    const text = $('#status-obsidian-text');
+    const statSession = $('#obsidian-stat-session');
+    const statBuffer = $('#obsidian-stat-buffer');
+
+    if (info.enabled) {
+      if (badge) { badge.textContent = `🟢 ${info.vaultName}`; badge.classList.add('connected'); }
+      if (dot) { dot.className = 'obsidian-dot connected'; }
+      if (text) text.textContent = `Vault: ${info.vaultName}`;
+      if (statSession) statSession.textContent = `Session: ${info.sessionId}`;
+      if (statBuffer) statBuffer.textContent = `Buffer: ${info.bufferSize}`;
+    } else {
+      if (badge) { badge.textContent = '⚪ Disconnected'; badge.classList.remove('connected'); }
+      if (dot) { dot.className = 'obsidian-dot'; }
+      if (text) text.textContent = 'Vault: Off';
+    }
+  }
+
+  async function loadObsidianFolder(subdir) {
+    obsidianCurrentPath = subdir;
+    const fileList = $('#obsidian-file-list');
+    if (!fileList) return;
+
+    try {
+      const notes = await window.gli.obsidian.listNotes(subdir);
+      if (!notes || notes.length === 0) {
+        fileList.innerHTML = '<div class="obsidian-empty"><p>No notes found in this folder.</p></div>';
+        return;
+      }
+
+      fileList.innerHTML = notes.map(n => {
+        const icon = n.type === 'folder' ? '📁' : '📝';
+        return `<div class="obsidian-file-item" data-path="${n.path}" data-type="${n.type}">
+          <span class="icon">${icon}</span>
+          <span class="name">${n.name}</span>
+        </div>`;
+      }).join('');
+
+      // Add click handlers
+      fileList.querySelectorAll('.obsidian-file-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const itemPath = item.dataset.path;
+          const itemType = item.dataset.type;
+          if (itemType === 'folder') {
+            loadObsidianFolder(itemPath);
+            updateObsidianBreadcrumb(itemPath);
+          } else {
+            viewObsidianNote(itemPath);
+          }
+        });
+      });
+
+    } catch (err) {
+      fileList.innerHTML = `<div class="obsidian-empty"><p>Error: ${err.message}</p></div>`;
+    }
+  }
+
+  function updateObsidianBreadcrumb(pathStr) {
+    const bc = $('#obsidian-breadcrumb');
+    if (!bc) return;
+
+    let html = '<span class="obsidian-crumb" data-path="">GLI</span>';
+    if (pathStr) {
+      const parts = pathStr.split(/[/\\]/);
+      let accumulated = '';
+      for (const part of parts) {
+        accumulated = accumulated ? `${accumulated}/${part}` : part;
+        html += `<span class="obsidian-crumb" data-path="${accumulated}">${part}</span>`;
+      }
+    }
+    bc.innerHTML = html;
+
+    // Click handlers on crumbs
+    bc.querySelectorAll('.obsidian-crumb').forEach(crumb => {
+      crumb.addEventListener('click', () => {
+        const crumbPath = crumb.dataset.path;
+        loadObsidianFolder(crumbPath);
+        updateObsidianBreadcrumb(crumbPath);
+      });
+    });
+  }
+
+  async function viewObsidianNote(notePath) {
+    const viewer = $('#obsidian-viewer');
+    const browser = $('#obsidian-browser');
+    const title = $('#obsidian-note-title');
+    const content = $('#obsidian-note-content');
+    if (!viewer || !browser) return;
+
+    try {
+      const noteContent = await window.gli.obsidian.readNote(notePath);
+      if (!noteContent) return;
+
+      const fileName = notePath.split(/[/\\]/).pop();
+      if (title) title.textContent = fileName;
+      if (content) content.textContent = noteContent;
+
+      browser.classList.add('hidden');
+      viewer.classList.remove('hidden');
+    } catch {}
+  }
+
+  // Back button from note viewer
+  $('#btn-obsidian-back')?.addEventListener('click', () => {
+    $('#obsidian-viewer')?.classList.add('hidden');
+    $('#obsidian-browser')?.classList.remove('hidden');
+  });
+
+  // Connect vault button
+  $('#btn-obsidian-connect')?.addEventListener('click', async () => {
+    const pathInput = $('#obsidian-vault-path');
+    const vaultPath = pathInput?.value?.trim();
+    if (!vaultPath) return;
+
+    const success = await window.gli.obsidian.setVaultPath(vaultPath);
+    if (success) {
+      const info = await window.gli.obsidian.getInfo();
+      updateObsidianStatus(info);
+      await loadObsidianFolder('');
+      addChatMessage('assistant', `🟣 Obsidian vault connected: **${info.vaultName}**\n\nAll conversations and project changes will be auto-recorded.`);
+    }
+  });
+
+  // Refresh button
+  $('#btn-obsidian-refresh')?.addEventListener('click', () => {
+    loadObsidianFolder(obsidianCurrentPath);
+  });
+
+  // Search toggle
+  $('#btn-obsidian-search')?.addEventListener('click', () => {
+    const searchBar = $('#obsidian-search');
+    searchBar?.classList.toggle('hidden');
+    if (!searchBar?.classList.contains('hidden')) {
+      $('#obsidian-search-input')?.focus();
+    }
+  });
+
+  // Search input
+  let obsSearchTimeout;
+  $('#obsidian-search-input')?.addEventListener('input', (e) => {
+    clearTimeout(obsSearchTimeout);
+    obsSearchTimeout = setTimeout(async () => {
+      const query = e.target.value.trim();
+      if (query.length < 2) { loadObsidianFolder(obsidianCurrentPath); return; }
+
+      const results = await window.gli.obsidian.search(query);
+      const fileList = $('#obsidian-file-list');
+      if (!fileList) return;
+
+      if (results.length === 0) {
+        fileList.innerHTML = '<div class="obsidian-empty"><p>No results found.</p></div>';
+        return;
+      }
+
+      fileList.innerHTML = results.map(r =>
+        `<div class="obsidian-file-item" data-path="${r.file}" data-type="file">
+          <span class="icon">🔍</span>
+          <span class="name">${r.title}</span>
+          <span class="meta">Line ${r.line}</span>
+        </div>`
+      ).join('');
+
+      fileList.querySelectorAll('.obsidian-file-item').forEach(item => {
+        item.addEventListener('click', () => viewObsidianNote(item.dataset.path));
+      });
+    }, 400);
+  });
+
+  // Listen for Obsidian status updates
+  window.gli.obsidian?.onStatus?.((data) => {
+    updateObsidianStatus(data);
+  });
+
+  // Initialize Obsidian on load
+  initObsidian();
+
+  // ═══════════════════════════════════════════════════════════
+  //  OpenRouter Status
+  // ═══════════════════════════════════════════════════════════
+  async function checkOpenRouterStatus() {
+    try {
+      const info = await window.gli.openrouter.getInfo();
+      if (info.enabled) {
+        addChatMessage('assistant', `🟢 **OpenRouter connected** — ${MODELS.filter(m => m.family.startsWith('OpenRouter')).length} models available.\n\nSelect an OpenRouter model from the model picker to use real AI.`);
+      }
+    } catch {}
+  }
+  checkOpenRouterStatus();
 
   // ═══════════════════════════════════════════════════════════
   //  Utilities

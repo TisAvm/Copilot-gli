@@ -123,4 +123,37 @@ contextBridge.exposeInMainWorld('gli', {
       ipcRenderer.on('browser:status', (_, data) => callback(data));
     },
   },
+
+  // Obsidian Vault
+  obsidian: {
+    getInfo: () => ipcRenderer.invoke('obsidian:getInfo'),
+    setVaultPath: (vaultPath) => ipcRenderer.invoke('obsidian:setVaultPath', vaultPath),
+    recordMessage: (role, content, metadata) =>
+      ipcRenderer.invoke('obsidian:recordMessage', { role, content, metadata }),
+    recordProjectChange: (project, change) =>
+      ipcRenderer.invoke('obsidian:recordProjectChange', { project, change }),
+    recordAction: (action, details) =>
+      ipcRenderer.invoke('obsidian:recordAction', { action, details }),
+    flush: () => ipcRenderer.invoke('obsidian:flush'),
+    search: (query) => ipcRenderer.invoke('obsidian:search', query),
+    listNotes: (subdir) => ipcRenderer.invoke('obsidian:listNotes', subdir),
+    readNote: (notePath) => ipcRenderer.invoke('obsidian:readNote', notePath),
+    createNote: (notePath, content) =>
+      ipcRenderer.invoke('obsidian:createNote', { path: notePath, content }),
+    onStatus: (callback) => {
+      ipcRenderer.on('obsidian:status', (_, data) => callback(data));
+    },
+  },
+
+  // OpenRouter AI
+  openrouter: {
+    getInfo: () => ipcRenderer.invoke('openrouter:getInfo'),
+    getModels: (forceRefresh) => ipcRenderer.invoke('openrouter:getModels', forceRefresh),
+    getCuratedModels: () => ipcRenderer.invoke('openrouter:getCuratedModels'),
+    chat: (messages, options) => ipcRenderer.invoke('openrouter:chat', { messages, options }),
+    chatStream: (messages, options) => ipcRenderer.invoke('openrouter:chatStream', { messages, options }),
+    onChunk: (callback) => {
+      ipcRenderer.on('openrouter:chunk', (_, data) => callback(data));
+    },
+  },
 });

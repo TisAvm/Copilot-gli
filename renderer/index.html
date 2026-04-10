@@ -99,6 +99,12 @@
           </svg>
           <span class="sidebar-label">Browser</span>
         </button>
+        <button class="sidebar-btn" data-panel="obsidian" title="Obsidian (Ctrl+9)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7v10l10 5 10-5V7L12 2z"/><path d="M12 22V12"/><path d="M22 7L12 12L2 7"/>
+          </svg>
+          <span class="sidebar-label">Obsidian</span>
+        </button>
       </div>
       <div class="sidebar-bottom">
         <button class="sidebar-btn" data-panel="settings" title="Settings (Ctrl+,)">
@@ -551,6 +557,61 @@
         </div>
       </section>
 
+      <!-- Panel: Obsidian Vault -->
+      <section class="panel" id="panel-obsidian">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z"/><path d="M12 22V12"/><path d="M22 7L12 12L2 7"/></svg>
+            Obsidian Vault
+          </h2>
+          <div class="panel-actions">
+            <span class="obsidian-status" id="obsidian-status-badge">⚪ Disconnected</span>
+            <button class="header-action" id="btn-obsidian-search" title="Search vault">🔍</button>
+            <button class="header-action" id="btn-obsidian-refresh" title="Refresh">↻</button>
+          </div>
+        </div>
+        <div class="obsidian-content">
+          <!-- Vault Path Config -->
+          <div class="obsidian-config" id="obsidian-config">
+            <div class="obsidian-config-row">
+              <input type="text" id="obsidian-vault-path" placeholder="Enter Obsidian vault path..." />
+              <button class="btn-accent btn-sm" id="btn-obsidian-connect">Connect</button>
+            </div>
+          </div>
+          <!-- Search Bar (hidden by default) -->
+          <div class="obsidian-search hidden" id="obsidian-search">
+            <input type="text" id="obsidian-search-input" placeholder="Search vault..." />
+          </div>
+          <!-- Vault Browser -->
+          <div class="obsidian-browser" id="obsidian-browser">
+            <div class="obsidian-breadcrumb" id="obsidian-breadcrumb">
+              <span class="obsidian-crumb" data-path="">GLI</span>
+            </div>
+            <div class="obsidian-file-list" id="obsidian-file-list">
+              <div class="obsidian-empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.2"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z"/><path d="M12 22V12"/><path d="M22 7L12 12L2 7"/></svg>
+                <h3>Obsidian Knowledge Base</h3>
+                <p>Connect your Obsidian vault to auto-record all GLI conversations, project changes, and daily activity.</p>
+                <p>Set <code>OBSIDIAN_VAULT_PATH</code> in .env or enter it above.</p>
+              </div>
+            </div>
+          </div>
+          <!-- Note Viewer -->
+          <div class="obsidian-viewer hidden" id="obsidian-viewer">
+            <div class="obsidian-viewer-header">
+              <button class="header-action" id="btn-obsidian-back" title="Back to list">← Back</button>
+              <span class="obsidian-note-title" id="obsidian-note-title">Note</span>
+            </div>
+            <div class="obsidian-note-content" id="obsidian-note-content"></div>
+          </div>
+          <!-- Stats Bar -->
+          <div class="obsidian-stats" id="obsidian-stats">
+            <span id="obsidian-stat-session">Session: —</span>
+            <span id="obsidian-stat-buffer">Buffer: 0</span>
+          </div>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -651,6 +712,11 @@
       <span class="status-item status-telegram" id="status-telegram" title="Telegram Bot Status">
         <span class="tg-dot disconnected" id="tg-status-dot-bar"></span>
         <span id="status-tg-text">TG: Offline</span>
+      </span>
+      <span class="status-separator">│</span>
+      <span class="status-item status-obsidian" id="status-obsidian" title="Obsidian Vault">
+        <span class="obsidian-dot" id="obsidian-status-dot"></span>
+        <span id="status-obsidian-text">Vault: Off</span>
       </span>
     </div>
     <div class="statusbar-center">

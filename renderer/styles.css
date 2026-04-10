@@ -2671,3 +2671,192 @@ html, body {
 }
 
 .browser-screenshot-preview.hidden { display: none; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  Obsidian Panel                                            */
+/* ═══════════════════════════════════════════════════════════ */
+
+.obsidian-content {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 44px);
+}
+
+.obsidian-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg-primary); }
+.obsidian-status.connected { color: #3fb950; }
+.obsidian-status.error { color: #f85149; }
+
+.obsidian-config {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.obsidian-config-row {
+  display: flex;
+  gap: 8px;
+}
+
+.obsidian-config-row input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  outline: none;
+}
+
+.obsidian-config-row input:focus { border-color: var(--accent); }
+
+.obsidian-search {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.obsidian-search input {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+}
+
+.obsidian-search input:focus { border-color: var(--accent); }
+
+.obsidian-breadcrumb {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.obsidian-crumb {
+  cursor: pointer;
+  color: var(--accent);
+}
+.obsidian-crumb:hover { text-decoration: underline; }
+.obsidian-crumb::after { content: ' / '; color: var(--text-muted); }
+.obsidian-crumb:last-child::after { content: ''; }
+.obsidian-crumb:last-child { color: var(--text-secondary); cursor: default; }
+
+.obsidian-file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.obsidian-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.obsidian-file-item:hover { background: var(--bg-hover); }
+.obsidian-file-item .icon { font-size: 16px; min-width: 20px; text-align: center; }
+.obsidian-file-item .name { flex: 1; }
+.obsidian-file-item .meta { font-size: 11px; color: var(--text-muted); }
+
+.obsidian-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  gap: 8px;
+  text-align: center;
+  padding: 20px;
+}
+
+.obsidian-empty h3 { color: var(--text-secondary); font-weight: 600; margin-top: 12px; }
+.obsidian-empty p { font-size: 13px; max-width: 360px; }
+.obsidian-empty code {
+  background: var(--bg-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.obsidian-viewer { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.obsidian-viewer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.obsidian-note-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.obsidian-note-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+}
+
+.obsidian-stats {
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.obsidian-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.obsidian-dot.connected { background: #3fb950; }
+.obsidian-dot.error { background: #f85149; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  OpenRouter Model Badges                                   */
+/* ═══════════════════════════════════════════════════════════ */
+
+.model-tier-free {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #16a34a22;
+  color: #3fb950;
+  border: 1px solid #3fb95044;
+}
+
+.model-provider {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 400;
+}

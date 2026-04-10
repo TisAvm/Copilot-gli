@@ -7,11 +7,15 @@ const { exec, spawn } = require('child_process');
 const TelegramService = require('./telegram');
 const SystemControl = require('./system-control');
 const BrowserControl = require('./browser-control');
+const ObsidianService = require('./obsidian');
+const OpenRouterService = require('./openrouter');
 
 let mainWindow;
 let telegram;
 let systemCtl;
 let browserCtl;
+let obsidian;
+let openrouter;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -48,16 +52,20 @@ app.whenReady().then(async () => {
   // Initialize services
   systemCtl = new SystemControl(mainWindow);
   browserCtl = new BrowserControl(mainWindow);
+  obsidian = new ObsidianService(mainWindow);
+  openrouter = new OpenRouterService();
 
   telegram = new TelegramService(mainWindow);
   telegram.setControllers(systemCtl, browserCtl);
   telegram._startTime = Date.now();
   await telegram.start();
+  await obsidian.init();
 });
 
 app.on('window-all-closed', () => {
   if (telegram) telegram.destroy();
   if (browserCtl) browserCtl.destroy();
+  if (obsidian) obsidian.destroy();
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -274,3 +282,36 @@ ipcMain.handle('browser:listTabs', async () => browserCtl?.listTabs());
 ipcMain.handle('browser:switchTab', (_, pageId) => browserCtl?.switchTab(pageId));
 ipcMain.handle('browser:cookies', async (_, pageId) => browserCtl?.getCookies(pageId));
 ipcMain.handle('browser:info', () => browserCtl?.getInfo());
+
+// ── Obsidian IPC Handlers ───────────────────────────────
+
+ipcMain.handle('obsidian:getInfo', () => obsidian?.getInfo());
+ipcMain.handle('obsidian:setVaultPath', async (_, vaultPath) => obsidian?.setVaultPath(vaultPath));
+ipcMain.handle('obsidian:recordMessage', (_, { role, content, metadata }) => obsidian?.recordMessage(role, content, metadata));
+ipcMain.handle('obsidian:recordProjectChange', async (_, { project, change }) => obsidian?.recordProjectChange(project, change));
+ipcMain.handle('obsidian:recordAction', async (_, { action, details }) => obsidian?.recordAction(action, details));
+ipcMain.handle('obsidian:flush', async () => obsidian?.flushConversation());
+ipcMain.handle('obsidian:search', async (_, query) => obsidian?.searchVault(query));
+ipcMain.handle('obsidian:listNotes', async (_, subdir) => obsidian?.listNotes(subdir));
+ipcMain.handle('obsidian:readNote', async (_, notePath) => obsidian?.readNote(notePath));
+ipcMain.handle('obsidian:createNote', async (_, { path: p, content }) => obsidian?.createNote(p, content));
+
+// ── OpenRouter IPC Handlers ─────────────────────────────
+
+ipcMain.handle('openrouter:getInfo', () => openrouter?.getInfo());
+ipcMain.handle('openrouter:getModels', async (_, forceRefresh) => openrouter?.getModels(forceRefresh));
+ipcMain.handle('openrouter:getCuratedModels', () => openrouter?.getCuratedModels());
+ipcMain.handle('openrouter:chat', async (_, { messages, options }) => openrouter?.chat(messages, options));
+ipcMain.handle('openrouter:chatStream', async (_, { messages, options }) => {
+  let fullContent = '';
+  await openrouter?.chatStream(messages, (chunk) => {
+    if (chunk.content) {
+      fullContent += chunk.content;
+      mainWindow?.webContents.send('openrouter:chunk', chunk);
+    }
+    if (chunk.done) {
+      mainWindow?.webContents.send('openrouter:chunk', { done: true });
+    }
+  }, options);
+  return fullContent;
+});
