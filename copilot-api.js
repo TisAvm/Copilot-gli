@@ -18,14 +18,30 @@ class CopilotAPI {
     this.defaultModel = 'gpt-4o-mini';
     this.enabled = !!this.githubToken;
 
-    // Models available via GitHub Models API
+    // Models available via GitHub Models API (tested & confirmed)
     this.models = [
-      { id: 'gpt-4o', name: 'GPT-4o', tier: 'standard' },
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', tier: 'fast' },
-      { id: 'o4-mini', name: 'o4-mini', tier: 'standard' },
-      { id: 'gpt-4.1', name: 'GPT-4.1', tier: 'standard' },
-      { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', tier: 'fast' },
-      { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', tier: 'free' },
+      // OpenAI
+      { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', tier: 'standard' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', tier: 'fast' },
+      { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'OpenAI', tier: 'standard' },
+      { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', provider: 'OpenAI', tier: 'fast' },
+      { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', provider: 'OpenAI', tier: 'free' },
+      // DeepSeek
+      { id: 'DeepSeek-R1', name: 'DeepSeek R1', provider: 'DeepSeek', tier: 'premium' },
+      // Meta Llama
+      { id: 'Meta-Llama-3.1-405B-Instruct', name: 'Llama 3.1 405B', provider: 'Meta', tier: 'premium' },
+      { id: 'Llama-3.3-70B-Instruct', name: 'Llama 3.3 70B', provider: 'Meta', tier: 'standard' },
+      { id: 'Llama-4-Scout-17B-16E-Instruct', name: 'Llama 4 Scout', provider: 'Meta', tier: 'standard' },
+      // Mistral
+      { id: 'Codestral-2501', name: 'Codestral', provider: 'Mistral', tier: 'standard' },
+      { id: 'Mistral-small-2503', name: 'Mistral Small', provider: 'Mistral', tier: 'fast' },
+      // Microsoft
+      { id: 'Phi-4', name: 'Phi-4', provider: 'Microsoft', tier: 'fast' },
+      { id: 'Phi-4-mini-instruct', name: 'Phi-4 Mini', provider: 'Microsoft', tier: 'free' },
+      { id: 'Phi-4-multimodal-instruct', name: 'Phi-4 Multimodal', provider: 'Microsoft', tier: 'standard' },
+      // Cohere
+      { id: 'Cohere-command-r-plus-08-2024', name: 'Command R+', provider: 'Cohere', tier: 'standard' },
+      { id: 'Cohere-command-r-08-2024', name: 'Command R', provider: 'Cohere', tier: 'fast' },
     ];
 
     if (this.enabled) {

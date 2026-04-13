@@ -35,29 +35,34 @@ document.addEventListener('DOMContentLoaded', () => {
   //  Models Registry
   // ═══════════════════════════════════════════════════════════
   const MODELS = [
-    // ── GitHub Copilot Models (free, uses gh auth — zero config) ──
-    { id: 'gpt-4o', name: 'GPT-4o', tier: 'standard', family: 'Copilot', backend: 'copilot' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', tier: 'fast', family: 'Copilot', backend: 'copilot' },
-    { id: 'o4-mini', name: 'o4-mini (Reasoning)', tier: 'standard', family: 'Copilot', backend: 'copilot' },
-    { id: 'gpt-4.1', name: 'GPT-4.1', tier: 'standard', family: 'Copilot', backend: 'copilot' },
-    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', tier: 'fast', family: 'Copilot', backend: 'copilot' },
-    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', tier: 'free', family: 'Copilot', backend: 'copilot' },
-    // ── OpenRouter Models (needs OPENROUTER_API_KEY) ──
+    // ── GitHub Models (free with gh auth — zero config) ──
+    // OpenAI
+    { id: 'gpt-4o', name: 'GPT-4o', tier: 'standard', family: 'OpenAI', backend: 'copilot' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', tier: 'fast', family: 'OpenAI', backend: 'copilot' },
+    { id: 'gpt-4.1', name: 'GPT-4.1', tier: 'standard', family: 'OpenAI', backend: 'copilot' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', tier: 'fast', family: 'OpenAI', backend: 'copilot' },
+    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', tier: 'free', family: 'OpenAI', backend: 'copilot' },
+    // DeepSeek
+    { id: 'DeepSeek-R1', name: 'DeepSeek R1', tier: 'premium', family: 'DeepSeek', backend: 'copilot' },
+    // Meta Llama
+    { id: 'Meta-Llama-3.1-405B-Instruct', name: 'Llama 3.1 405B', tier: 'premium', family: 'Meta', backend: 'copilot' },
+    { id: 'Llama-3.3-70B-Instruct', name: 'Llama 3.3 70B', tier: 'standard', family: 'Meta', backend: 'copilot' },
+    { id: 'Llama-4-Scout-17B-16E-Instruct', name: 'Llama 4 Scout', tier: 'standard', family: 'Meta', backend: 'copilot' },
+    // Mistral
+    { id: 'Codestral-2501', name: 'Codestral', tier: 'standard', family: 'Mistral', backend: 'copilot' },
+    { id: 'Mistral-small-2503', name: 'Mistral Small', tier: 'fast', family: 'Mistral', backend: 'copilot' },
+    // Microsoft
+    { id: 'Phi-4', name: 'Phi-4', tier: 'fast', family: 'Microsoft', backend: 'copilot' },
+    { id: 'Phi-4-mini-instruct', name: 'Phi-4 Mini', tier: 'free', family: 'Microsoft', backend: 'copilot' },
+    { id: 'Phi-4-multimodal-instruct', name: 'Phi-4 Multimodal', tier: 'standard', family: 'Microsoft', backend: 'copilot' },
+    // Cohere
+    { id: 'Cohere-command-r-plus-08-2024', name: 'Command R+', tier: 'standard', family: 'Cohere', backend: 'copilot' },
+    { id: 'Cohere-command-r-08-2024', name: 'Command R', tier: 'fast', family: 'Cohere', backend: 'copilot' },
+    // ── OpenRouter Models (optional — needs OPENROUTER_API_KEY) ──
     { id: 'openrouter/anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
     { id: 'openrouter/anthropic/claude-opus-4-20250514', name: 'Claude Opus 4', tier: 'premium', family: 'OpenRouter', backend: 'openrouter' },
-    { id: 'openrouter/anthropic/claude-haiku-4-20250414', name: 'Claude Haiku 4', tier: 'fast', family: 'OpenRouter', backend: 'openrouter' },
-    { id: 'openrouter/openai/gpt-4o', name: 'GPT-4o (OR)', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
     { id: 'openrouter/google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
     { id: 'openrouter/google/gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash', tier: 'fast', family: 'OpenRouter', backend: 'openrouter' },
-    { id: 'openrouter/deepseek/deepseek-chat-v3-0324', name: 'DeepSeek V3', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
-    { id: 'openrouter/deepseek/deepseek-r1', name: 'DeepSeek R1', tier: 'premium', family: 'OpenRouter', backend: 'openrouter' },
-    { id: 'openrouter/meta-llama/llama-4-maverick', name: 'Llama 4 Maverick', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
-    { id: 'openrouter/mistralai/codestral-2501', name: 'Codestral', tier: 'standard', family: 'OpenRouter', backend: 'openrouter' },
-    // ── Free OpenRouter Models ──
-    { id: 'openrouter/meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', tier: 'free', family: 'OpenRouter Free', backend: 'openrouter' },
-    { id: 'openrouter/google/gemma-3-27b-it:free', name: 'Gemma 3 27B (Free)', tier: 'free', family: 'OpenRouter Free', backend: 'openrouter' },
-    { id: 'openrouter/deepseek/deepseek-chat-v3-0324:free', name: 'DeepSeek V3 (Free)', tier: 'free', family: 'OpenRouter Free', backend: 'openrouter' },
-    { id: 'openrouter/qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B (Free)', tier: 'free', family: 'OpenRouter Free', backend: 'openrouter' },
   ];
 
   // ═══════════════════════════════════════════════════════════

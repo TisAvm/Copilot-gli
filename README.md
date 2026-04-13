@@ -52,16 +52,21 @@ npm run dev
 
 If you have `gh` CLI authenticated, GLI auto-detects your token and gives you access to:
 
-| Model | Type | Speed |
-|-------|------|-------|
-| GPT-4o | Standard | ⚡ |
-| GPT-4o Mini | Fast | ⚡⚡ |
-| o4-mini | Reasoning | ⚡ |
-| GPT-4.1 | Standard | ⚡ |
-| GPT-4.1 Mini | Fast | ⚡⚡ |
-| GPT-4.1 Nano | Ultrafast | ⚡⚡⚡ |
+| Model | Provider | Type |
+|-------|----------|------|
+| GPT-4o | OpenAI | Standard |
+| GPT-4o Mini | OpenAI | Fast |
+| GPT-4.1 / Mini / Nano | OpenAI | Standard / Fast / Free |
+| DeepSeek R1 | DeepSeek | Reasoning |
+| Llama 3.1 405B | Meta | Premium |
+| Llama 3.3 70B | Meta | Standard |
+| Llama 4 Scout | Meta | Standard |
+| Codestral | Mistral | Code |
+| Mistral Small | Mistral | Fast |
+| Phi-4 / Mini / Multimodal | Microsoft | Fast / Free |
+| Command R+ / R | Cohere | Standard / Fast |
 
-**No API key needed.** Uses your existing GitHub authentication.
+**No API key needed.** 16 models across 6 providers — all free with your GitHub auth.
 
 ### 🔶 OpenRouter Models (Optional — 200+ Models)
 
@@ -225,7 +230,7 @@ npx obsidian-mcp /path/to/your/vault
 
 ## 🤖 OpenRouter Setup (Optional)
 
-Want access to Claude, Gemini, DeepSeek, and 200+ more models beyond the built-in Copilot ones?
+Want Claude or Gemini models that aren't on GitHub Models yet?
 
 1. Get an API key at [openrouter.ai/keys](https://openrouter.ai/keys)
 2. Add to `.env`: `OPENROUTER_API_KEY=sk-or-...`
